@@ -1,0 +1,2 @@
+C:/Users/lasha/AndroidStudioProjects/todo/todo_spring_2025/android/app/.cxx/Debug/135d676b/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/lasha/AndroidStudioProjects/todo/todo_spring_2025/android/app/.cxx/Debug/135d676b/arm64-v8a/CMakeFiles/rebuild_cache.dir
