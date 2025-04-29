@@ -6,12 +6,11 @@ import 'firebase_options.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
+  WidgetsFlutterBinding.ensureInitialized(); // Ensures Flutter is initialized
+  await Firebase.initializeApp( // Initializes Firebase
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  tz.initializeTimeZones();
-  runApp(const MyApp());
+  runApp(const MyApp()); // Runs your Flutter app
 }
 
 class MyApp extends StatelessWidget {
