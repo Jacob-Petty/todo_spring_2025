@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../data/todo.dart';
 import 'details/detail_screen.dart';
@@ -26,9 +27,13 @@ class _HomeScreenState extends State<HomeScreen> {
     order: 'descending',
   );
 
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
   @override
   void initState() {
     super.initState();
+    _speech = stt.SpeechToText();
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _todoSubscription = getTodosForUser(user.uid).listen((todos) {
@@ -48,6 +53,26 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _startListening() async {
+    bool available = await _speech.initialize(
+      onStatus: (status) => print('Status: $status'),
+      onError: (error) => print('Error: $error'),
+    );
+    if (available) {
+      setState(() => _isListening = true);
+      _speech.listen(onResult: (result) {
+        setState(() {
+          _controller.text = result.recognizedWords; // Populate the TextField
+        });
+      });
+    }
+  }
+
+  void _stopListening() {
+    setState(() => _isListening = false);
+    _speech.stop();
+  }
+
   List<Todo> filterTodos() {
     List<Todo> filteredTodos = _todos.where((todo) {
       return todo.text.toLowerCase().contains(_searchController.text.toLowerCase());
@@ -55,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (_filters.sortBy == 'date') {
       filteredTodos.sort((a, b) =>
-          _filters.order == 'ascending' ? a.createdAt.compareTo(b.createdAt) : b.createdAt.compareTo(a.createdAt));
+      _filters.order == 'ascending' ? a.createdAt.compareTo(b.createdAt) : b.createdAt.compareTo(a.createdAt));
     } else if (_filters.sortBy == 'completed') {
       filteredTodos.sort((a, b) => _filters.order == 'ascending'
           ? (a.completedAt ?? DateTime(0)).compareTo(b.completedAt ?? DateTime(0))
@@ -136,39 +161,39 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _filteredTodos?.isEmpty ?? true
                         ? const Center(child: Text('No TODOs found'))
                         : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            itemCount: _filteredTodos?.length ?? 0,
-                            itemBuilder: (context, index) {
-                              final todo = _filteredTodos?[index];
-                              if (todo == null) return const SizedBox.shrink();
-                              return ListTile(
-                                leading: Checkbox(
-                                  value: todo.completedAt != null,
-                                  onChanged: (bool? value) {
-                                    final updateData = {
-                                      'completedAt': value == true ? FieldValue.serverTimestamp() : null
-                                    };
-                                    FirebaseFirestore.instance.collection('todos').doc(todo.id).update(updateData);
-                                  },
-                                ),
-                                trailing: Icon(Icons.arrow_forward_ios),
-                                title: Text(
-                                  todo.text,
-                                  style: todo.completedAt != null
-                                      ? const TextStyle(decoration: TextDecoration.lineThrough)
-                                      : null,
-                                ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => DetailScreen(todo: todo),
-                                    ),
-                                  );
-                                },
-                              );
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      itemCount: _filteredTodos?.length ?? 0,
+                      itemBuilder: (context, index) {
+                        final todo = _filteredTodos?[index];
+                        if (todo == null) return const SizedBox.shrink();
+                        return ListTile(
+                          leading: Checkbox(
+                            value: todo.completedAt != null,
+                            onChanged: (bool? value) {
+                              final updateData = {
+                                'completedAt': value == true ? FieldValue.serverTimestamp() : null
+                              };
+                              FirebaseFirestore.instance.collection('todos').doc(todo.id).update(updateData);
                             },
                           ),
+                          trailing: Icon(Icons.arrow_forward_ios),
+                          title: Text(
+                            todo.text,
+                            style: todo.completedAt != null
+                                ? const TextStyle(decoration: TextDecoration.lineThrough)
+                                : null,
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DetailScreen(todo: todo),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
                   Container(
                     color: Colors.green[100],
@@ -186,6 +211,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
+                          onPressed: _isListening ? _stopListening : _startListening,
+                        ),
                         ElevatedButton(
                           onPressed: () async {
                             if (user != null && _controller.text.isNotEmpty) {
