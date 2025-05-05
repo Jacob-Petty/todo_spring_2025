@@ -210,33 +210,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Color _getPriorityColor(Todo todo) {
     // Default to medium priority (orange) if not specified
-    String priority = 'medium';
+    final priority = todo.priority ?? 'medium';
 
-    try {
-      // Try to get the priority from Firestore data
-      final data = FirebaseFirestore.instance
-          .collection('users')
-          .doc(todo.uid)
-          .collection('todos')
-          .doc(todo.id)
-          .get() as Map<String, dynamic>?;
-
-      if (data != null && data.containsKey('priority')) {
-        priority = data['priority'] as String;
-      }
-    } catch (e) {
-      // Ignore errors and use default
-    }
-
-    switch (priority) {
+    switch (priority.toLowerCase()) {
       case 'high':
         return Colors.red;
+      case 'med':
       case 'medium':
         return Colors.orange;
       case 'low':
         return Colors.green;
       default:
-        return Colors.orange;
+        return Colors.orange; // Default to medium priority color
     }
   }
 
