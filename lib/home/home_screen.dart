@@ -56,10 +56,48 @@ class _HomeScreenState extends State<HomeScreen> {
       .map((qs) => qs.docs.map(Todo.fromSnapshot).toList());
 
   List<Todo> _applyFilters() {
+    if (_todos.isEmpty) return [];
+
+    // Start with text search filtering
     final query = _searchController.text.toLowerCase();
+    var list = _todos.where((t) => t.text.toLowerCase().contains(query)).toList();
 
-    final list = _todos.where((t) => t.text.toLowerCase().contains(query)).toList();
+    // Apply priority filter if set
+    if (_filters.priority != null) {
+      list = list.where((t) => (t.priority ?? 'medium').toLowerCase() == _filters.priority).toList();
+    }
 
+    // Apply due date filter if set
+    if (_filters.dueDate != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+
+      switch (_filters.dueDate) {
+        case 'overdue':
+          list = list.where((t) =>
+          t.dueAt != null &&
+              t.dueAt!.isBefore(now) &&
+              t.completedAt == null
+          ).toList();
+          break;
+        case 'today':
+          list = list.where((t) =>
+          t.dueAt != null &&
+              t.dueAt!.isAfter(today.subtract(const Duration(seconds: 1))) &&
+              t.dueAt!.isBefore(tomorrow)
+          ).toList();
+          break;
+        case 'future':
+          list = list.where((t) =>
+          t.dueAt != null &&
+              t.dueAt!.isAfter(tomorrow.subtract(const Duration(seconds: 1)))
+          ).toList();
+          break;
+      }
+    }
+
+    // Apply sorting
     int compareDates(DateTime a, DateTime b) =>
         _filters.order == 'ascending' ? a.compareTo(b) : b.compareTo(a);
 
@@ -68,10 +106,50 @@ class _HomeScreenState extends State<HomeScreen> {
         list.sort(
               (a, b) => compareDates(a.completedAt ?? DateTime(0), b.completedAt ?? DateTime(0)),
         );
+        break;
+      case 'priority':
+        list.sort((a, b) {
+          // Convert priority to numeric value (high=3, medium=2, low=1, default=0)
+          int getPriorityValue(String? priority) {
+            if (priority == null) return 0;
+            switch (priority.toLowerCase()) {
+              case 'high': return 3;
+              case 'medium': return 2;
+              case 'low': return 1;
+              default: return 0;
+            }
+          }
+
+          final aValue = getPriorityValue(a.priority);
+          final bValue = getPriorityValue(b.priority);
+
+          // Sort by priority, and then by creation date if same priority
+          if (aValue != bValue) {
+            return _filters.order == 'ascending' ? aValue - bValue : bValue - aValue;
+          } else {
+            return compareDates(a.createdAt, b.createdAt);
+          }
+        });
+        break;
+      case 'due':
+        list.sort((a, b) {
+          if (a.dueAt == null && b.dueAt == null) {
+            return compareDates(a.createdAt, b.createdAt); // Both null, sort by creation date
+          } else if (a.dueAt == null) {
+            return _filters.order == 'ascending' ? 1 : -1; // a null goes last in ascending, first in descending
+          } else if (b.dueAt == null) {
+            return _filters.order == 'ascending' ? -1 : 1; // b null goes last in ascending, first in descending
+          } else {
+            return compareDates(a.dueAt!, b.dueAt!); // Both have due dates, compare normally
+          }
+        });
+        break;
       case 'date':
       default:
         list.sort((a, b) => compareDates(a.createdAt, b.createdAt));
+        break;
     }
+
     return list;
   }
 
@@ -167,6 +245,16 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (todo.description != null && todo.description!.isNotEmpty)
+                    Text(
+                      todo.description!.length > 30
+                          ? '${todo.description!.substring(0, 30)}...'
+                          : todo.description!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
                   if (todo.dueAt != null)
                     Text(
                       _readableDue(todo.dueAt!),
@@ -289,15 +377,42 @@ class _HomeScreenState extends State<HomeScreen> {
                         prefixIcon: const Icon(Icons.search, color: Colors.grey),
                         labelText: 'Search Tasks',
                         labelStyle: const TextStyle(color: Colors.grey),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.filter_list, color: Colors.grey),
-                          onPressed: () async {
-                            final res = await showModalBottomSheet<FilterSheetResult>(
-                              context: context,
-                              builder: (_) => FilterSheet(initialFilters: _filters),
-                            );
-                            if (res != null) setState(() => _filters = res);
-                          },
+                        suffixIcon: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.filter_list, color: Colors.grey),
+                              onPressed: () async {
+                                final res = await showModalBottomSheet<FilterSheetResult>(
+                                  context: context,
+                                  backgroundColor: Colors.grey[900],
+                                  builder: (_) => FilterSheet(initialFilters: _filters),
+                                );
+                                if (res != null) {
+                                  setState(() {
+                                    _filters = res;
+                                    _filtered = _applyFilters();
+                                  });
+                                }
+                              },
+                            ),
+                            if (_filters.priority != null || _filters.dueDate != null)
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 8,
+                                    minHeight: 8,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         enabledBorder: const OutlineInputBorder(
                           borderSide: BorderSide(color: Colors.grey, width: 1.0),
