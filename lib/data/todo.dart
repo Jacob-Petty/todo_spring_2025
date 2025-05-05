@@ -6,7 +6,7 @@ class Todo {
   final String? uid;
   final DateTime createdAt;
   DateTime? completedAt;
-  final DateTime? dueAt;
+  DateTime? dueAt;
   String? imageUrl;
   final String? description;
   final String? priority;

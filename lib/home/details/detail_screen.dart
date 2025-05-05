@@ -27,6 +27,7 @@ class _DetailScreenState extends State<DetailScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   TaskPriority _priority = TaskPriority.medium;
+  DateTime? _selectedDueDate;
 
   // Add this to track edit mode
   bool _isEditMode = false;
@@ -36,6 +37,7 @@ class _DetailScreenState extends State<DetailScreen> {
     super.initState();
     _titleController = TextEditingController(text: widget.todo.text);
     _descriptionController = TextEditingController(text: widget.todo.description ?? '');
+    _selectedDueDate = widget.todo.dueAt;
 
     // Set initial priority from todo
     if (widget.todo.priority != null) {
@@ -406,6 +408,200 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  // Build the due date section
+  Widget _buildDueDateSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Due Date',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _isEditMode
+            ? Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.calendar_today),
+                label: Text(
+                  _selectedDueDate == null
+                      ? 'Set Due Date'
+                      : 'Due: ${DateFormat.yMMMd().add_jm().format(_selectedDueDate!)}',
+                  style: const TextStyle(overflow: TextOverflow.ellipsis),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => _selectDueDate(context),
+              ),
+            ),
+            if (_selectedDueDate != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.clear, color: Colors.white),
+                tooltip: 'Clear due date',
+                onPressed: () => setState(() => _selectedDueDate = null),
+              ),
+            ],
+          ],
+        )
+            : _selectedDueDate == null
+            ? Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Colors.grey,
+              width: 1,
+            ),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.event_busy,
+                color: Colors.grey,
+                size: 20,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'No due date set',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        )
+            : Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: _getDueDateColor(_selectedDueDate!).withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _getDueDateColor(_selectedDueDate!),
+              width: 2,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.event,
+                color: _getDueDateColor(_selectedDueDate!),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _formatDueDate(_selectedDueDate!),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // Method to select a due date
+  Future<void> _selectDueDate(BuildContext context) async {
+    final DateTime initialDate = _selectedDueDate ?? DateTime.now();
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)), // Allow selecting past dates for flexibility
+      lastDate: DateTime.now().add(const Duration(days: 3650)), // 10 years into future
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: Colors.blue[700]!,
+              onPrimary: Colors.white,
+              surface: Colors.grey[900]!,
+              onSurface: Colors.white,
+            ),
+            dialogBackgroundColor: Colors.grey[900],
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      // Now, select time
+      final TimeOfDay initialTime = _selectedDueDate != null
+          ? TimeOfDay.fromDateTime(_selectedDueDate!)
+          : TimeOfDay.now();
+
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: initialTime,
+        builder: (context, child) {
+          return Theme(
+            data: ThemeData.dark().copyWith(
+              colorScheme: ColorScheme.dark(
+                primary: Colors.blue[700]!,
+                onPrimary: Colors.white,
+                surface: Colors.grey[900]!,
+                onSurface: Colors.white,
+              ),
+              dialogBackgroundColor: Colors.grey[900],
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          _selectedDueDate = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+        });
+      }
+    }
+  }
+
+  // Helper method to get due date color
+  Color _getDueDateColor(DateTime dueDate) {
+    final now = DateTime.now();
+
+    // If due date is in the past, show red
+    if (dueDate.isBefore(now)) {
+      return Colors.red;
+    }
+
+    // If due date is today, show orange
+    if (dueDate.year == now.year && dueDate.month == now.month && dueDate.day == now.day) {
+      return Colors.orange;
+    }
+
+    // If due date is tomorrow, show yellow
+    final tomorrow = now.add(const Duration(days: 1));
+    if (dueDate.year == tomorrow.year && dueDate.month == tomorrow.month && dueDate.day == tomorrow.day) {
+      return Colors.yellow;
+    }
+
+    // Otherwise, show blue
+    return Colors.blue;
+  }
+
   // Helper method to get priority color
   Color _getColorForPriority(TaskPriority priority) {
     switch (priority) {
@@ -473,6 +669,12 @@ class _DetailScreenState extends State<DetailScreen> {
         'text': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
         'priority': priorityString,
+        'dueAt': _selectedDueDate != null ? Timestamp.fromDate(_selectedDueDate!) : null,
+      });
+
+      // Update local todo object
+      setState(() {
+        widget.todo.dueAt = _selectedDueDate;
       });
 
       if (mounted) {
@@ -636,167 +838,171 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
         backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Task Details'),
-        actions: [
-          // Edit button
-          if (!_isEditMode)
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          title: const Text('Task Details'),
+          actions: [
+            // Edit button
+            if (!_isEditMode)
+              IconButton(
+                icon: const Icon(Icons.edit),
+                tooltip: 'Edit Task',
+                onPressed: _toggleEditMode,
+              ),
+            // Delete button (always visible)
             IconButton(
-              icon: const Icon(Icons.edit),
-              tooltip: 'Edit Task',
-              onPressed: _toggleEditMode,
+              icon: const Icon(Icons.delete),
+              tooltip: 'Delete Task',
+              onPressed: _isLoading ? null : _deleteTodo,
             ),
-          // Delete button (always visible)
-          IconButton(
-            icon: const Icon(Icons.delete),
-            tooltip: 'Delete Task',
-            onPressed: _isLoading ? null : _deleteTodo,
-          ),
-        ],
-      ),
-      body: _isLoading && _errorMessage == null
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Task title section
-            const Text(
-              'Task Title',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _isEditMode
-                ? TextField(
-              controller: _titleController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Enter task title',
-                hintStyle: TextStyle(color: Colors.grey),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey, width: 1.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.blue, width: 2.0),
-                ),
-              ),
-              maxLines: null,
-              textInputAction: TextInputAction.next,
-            )
-                : Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey, width: 1.0),
-                ),
-                width: double.infinity,
-                child: Text(
-                  widget.todo.text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Task description section
-            const Text(
-              'Description',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _isEditMode
-                ? TextField(
-              controller: _descriptionController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Enter task description (optional)',
-                hintStyle: TextStyle(color: Colors.grey),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey, width: 1.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.blue, width: 2.0),
-                ),
-              ),
-              maxLines: 3,
-              textInputAction: TextInputAction.next,
-            )
-                : Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey, width: 1.0),
-                ),
-                width: double.infinity,
-                child: Text(
-                  widget.todo.description ?? 'No description',
-                  style: TextStyle(
-                    color: widget.todo.description == null || widget.todo.description!.isEmpty
-                        ? Colors.grey
-                        : Colors.white,
-                    fontSize: 16,
-                    fontStyle: widget.todo.description == null || widget.todo.description!.isEmpty
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Priority section
-            _buildPrioritySection(),
-            const SizedBox(height: 16),
-
-            // Image section
-            _buildImageSection(),
-
-            // Show creation and completion dates
-            const SizedBox(height: 24),
-            Text(
-              'Created: ${_formatDate(widget.todo.createdAt)}',
-              style: const TextStyle(color: Colors.grey),
-            ),
-            if (widget.todo.completedAt != null)
-              Text(
-                'Completed: ${_formatDate(widget.todo.completedAt!)}',
-                style: const TextStyle(color: Colors.green),
-              ),
-            if (widget.todo.dueAt != null)
-              Text(
-                'Due: ${_formatDueDate(widget.todo.dueAt!)}',
-                style: TextStyle(
-                  color: widget.todo.dueAt!.isBefore(DateTime.now())
-                      ? Colors.red
-                      : Colors.orange,
-                ),
-              ),
           ],
         ),
+        body: _isLoading && _errorMessage == null
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+    // Task title section
+    const Text(
+    'Task Title',
+    style: TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+    ),
+    ),
+    const SizedBox(height: 8),
+    _isEditMode
+    ? TextField(
+    controller: _titleController,
+    style: const TextStyle(color: Colors.white),
+    decoration: const InputDecoration(
+    border: OutlineInputBorder(),
+    hintText: 'Enter task title',
+    hintStyle: TextStyle(color: Colors.grey),
+    enabledBorder: OutlineInputBorder(
+    borderSide: BorderSide(color: Colors.grey, width: 1.0),
+    ),
+    focusedBorder: OutlineInputBorder(
+    borderSide: BorderSide(color: Colors.blue, width: 2.0),
+    ),
+    ),
+    maxLines: null,
+    textInputAction: TextInputAction.next,
+    )
+        : Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+    color: Colors.grey[900],
+    borderRadius: BorderRadius.circular(8),
+    border: Border.all(color: Colors.grey, width: 1.0),
+    ),
+    width: double.infinity,
+    child: Text(
+    widget.todo.text,
+    style: const TextStyle(
+    color: Colors.white,
+    fontSize: 16,
+    ),
+    ),
+    ),
+    ),
+    const SizedBox(height: 24),
+
+    // Task description section
+    const Text(
+    'Description',
+    style: TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+    ),
+    ),
+    const SizedBox(height: 8),
+    _isEditMode
+    ? TextField(
+    controller: _descriptionController,
+    style: const TextStyle(color: Colors.white),
+    decoration: const InputDecoration(
+    border: OutlineInputBorder(),
+    hintText: 'Enter task description (optional)',
+    hintStyle: TextStyle(color: Colors.grey),
+    enabledBorder: OutlineInputBorder(
+    borderSide: BorderSide(color: Colors.grey, width: 1.0),
+    ),
+    focusedBorder: OutlineInputBorder(
+    borderSide: BorderSide(color: Colors.blue, width: 2.0),
+    ),
+    ),
+    maxLines: 3,
+    textInputAction: TextInputAction.next,
+    )
+        : Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey, width: 1.0),
+        ),
+        width: double.infinity,
+        child: Text(
+          widget.todo.description ?? 'No description',
+          style: TextStyle(
+            color: widget.todo.description == null || widget.todo.description!.isEmpty
+                ? Colors.grey
+                : Colors.white,
+            fontSize: 16,
+            fontStyle: widget.todo.description == null || widget.todo.description!.isEmpty
+                ? FontStyle.italic
+                : FontStyle.normal,
+          ),
+        ),
       ),
+    ),
+      const SizedBox(height: 24),
+
+      // Due Date section (new)
+      _buildDueDateSection(),
+      const SizedBox(height: 16),
+
+      // Priority section
+      _buildPrioritySection(),
+      const SizedBox(height: 16),
+
+      // Image section
+      _buildImageSection(),
+
+      // Show creation and completion dates
+      const SizedBox(height: 24),
+      Text(
+        'Created: ${_formatDate(widget.todo.createdAt)}',
+        style: const TextStyle(color: Colors.grey),
+      ),
+      if (widget.todo.completedAt != null)
+        Text(
+          'Completed: ${_formatDate(widget.todo.completedAt!)}',
+          style: const TextStyle(color: Colors.green),
+        ),
+      if (widget.todo.dueAt != null && _selectedDueDate == null) // Show original due date if not modified
+        Text(
+          'Due: ${_formatDueDate(widget.todo.dueAt!)}',
+          style: TextStyle(
+            color: widget.todo.dueAt!.isBefore(DateTime.now())
+                ? Colors.red
+                : Colors.orange,
+          ),
+        ),
+    ],
+    ),
+        ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
