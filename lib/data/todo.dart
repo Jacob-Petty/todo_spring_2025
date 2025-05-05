@@ -3,10 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Todo {
   final String id;
   final String text;
-  final String uid;
+  final String? uid;
   final DateTime createdAt;
   final DateTime? completedAt;
   final DateTime? dueAt;
+  final String? imageUrl; // New field for image URL
 
   Todo({
     required this.id,
@@ -15,6 +16,7 @@ class Todo {
     required this.createdAt,
     required this.completedAt,
     required this.dueAt,
+    this.imageUrl,
   });
 
   Map<String, dynamic> toSnapshot() {
@@ -23,7 +25,8 @@ class Todo {
       'uid': uid,
       'createdAt': Timestamp.fromDate(createdAt),
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
-      'dueAt': dueAt != null ? Timestamp.fromDate(dueAt!) : null,
+      'dueAt': dueAt != null ? Timestamp.fromDate(dueAt!) : null
+      // 'imageUrl': imageUrl, // Include image URL in Firestore document
     };
   }
 
@@ -36,6 +39,7 @@ class Todo {
       createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : DateTime.now(),
       completedAt: data['completedAt'] != null ? (data['completedAt'] as Timestamp).toDate() : null,
       dueAt: data['dueAt'] != null ? (data['dueAt'] as Timestamp).toDate() : null,
+      imageUrl: data['imageUrl'], // Map image URL from Firestore document
     );
   }
 }

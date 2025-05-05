@@ -82,11 +82,27 @@ class _HomeScreenState extends State<HomeScreen> {
   /* ─────────────────────── Todo-handling helpers ────────────────────── */
 
   Stream<List<Todo>> _userTodos(String uid) => FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
       .collection('todos')
-      .where('uid', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
       .snapshots()
       .map((qs) => qs.docs.map(Todo.fromSnapshot).toList());
+
+  Future<void> _addTodo(User user) async {
+    if (_taskController.text.trim().isEmpty) return;
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('todos')
+        .add({
+      'text'      : _taskController.text.trim(),
+      'createdAt' : FieldValue.serverTimestamp(),
+      'dueAt'     : _selectedDue == null ? null : Timestamp.fromDate(_selectedDue!),
+    });
+    _taskController.clear();
+    setState(() => _selectedDue = null);
+  }
 
   List<Todo> _applyFilters() {
     final query = _searchController.text.toLowerCase();
@@ -131,18 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
     icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
     onPressed: _isListening ? _stopListening : _startListening,
   );
-
-  Future<void> _addTodo(User user) async {
-    if (_taskController.text.trim().isEmpty) return;
-    await FirebaseFirestore.instance.collection('todos').add({
-      'text'      : _taskController.text.trim(),
-      'createdAt' : FieldValue.serverTimestamp(),
-      'uid'       : user.uid,
-      'dueAt'     : _selectedDue == null ? null : Timestamp.fromDate(_selectedDue!),
-    });
-    _taskController.clear();
-    setState(() => _selectedDue = null);
-  }
 
   /* ───────────────────────────────── UI ──────────────────────────────── */
 
@@ -217,6 +221,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           leading: Checkbox(
                             value: t.completedAt != null,
                             onChanged: (v) => FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user!.uid)
                                 .collection('todos')
                                 .doc(t.id)
                                 .update({'completedAt': v! ? FieldValue.serverTimestamp() : null}),
@@ -300,6 +306,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 leading: Checkbox(
                                   value: t.completedAt != null,
                                   onChanged: (v) => FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(user!.uid)
                                       .collection('todos')
                                       .doc(t.id)
                                       .update({'completedAt': v! ? FieldValue.serverTimestamp() : null}),

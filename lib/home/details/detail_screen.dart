@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/todo.dart';
 
 final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -29,11 +30,20 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _delete() async {
     try {
-      await FirebaseFirestore.instance.collection('todos').doc(widget.todo.id).delete();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('todos')
+          .doc(widget.todo.id)
+          .delete();
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Todo deleted!')),
+          const SnackBar(content: Text('Todo deleted!')),
         );
       }
     } catch (e) {
@@ -47,7 +57,16 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _updateText(String newText) async {
     try {
-      await FirebaseFirestore.instance.collection('todos').doc(widget.todo.id).update({'text': newText});
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('todos')
+          .doc(widget.todo.id)
+          .update({'text': newText});
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Todo updated!')),
@@ -64,7 +83,12 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _updateDueDate(DateTime? newDueDate) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
       await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
           .collection('todos')
           .doc(widget.todo.id)
           .update({'dueAt': newDueDate == null ? null : Timestamp.fromDate(newDueDate)});
