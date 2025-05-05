@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -17,10 +20,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-
 class _HomeScreenState extends State<HomeScreen> {
-  final _taskController   = TextEditingController();
+  final _taskController = TextEditingController();
   final _searchController = TextEditingController();
 
   late final stt.SpeechToText _speech;
@@ -30,11 +31,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Todo>? _filtered;
   FilterSheetResult _filters = FilterSheetResult(sortBy: 'date', order: 'descending');
 
-  bool _isListening   = false;
-  bool _drawerOpen    = false;
+  bool _isListening = false;
+  bool _drawerOpen = false;
   DateTime? _selectedDue;
-
-  /* ───────────────────────── Init / dispose ──────────────────────────── */
+  String? _selectedImagePath;
+  String? _selectedImageUrl;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -45,8 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user != null) {
       _todoSub = _userTodos(user.uid).listen((t) {
         setState(() {
-          _todos     = t;
-          _filtered  = _applyFilters();
+          _todos = t;
+          _filtered = _applyFilters();
         });
       });
     }
@@ -60,27 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /* ───────────────────── Speech-to-text helpers ─────────────────────── */
-
-  Future<void> _startListening() async {
-    if (await _speech.initialize(
-      onStatus:  (s) => debugPrint('Speech status: $s'),
-      onError:   (e) => debugPrint('Speech error : $e'),
-    )) {
-      setState(() => _isListening = true);
-      _speech.listen(
-        onResult: (r) => setState(() => _taskController.text = r.recognizedWords),
-      );
-    }
-  }
-
-  void _stopListening() {
-    _speech.stop();
-    setState(() => _isListening = false);
-  }
-
-  /* ─────────────────────── Todo-handling helpers ────────────────────── */
-
   Stream<List<Todo>> _userTodos(String uid) => FirebaseFirestore.instance
       .collection('users')
       .doc(uid)
@@ -90,18 +71,77 @@ class _HomeScreenState extends State<HomeScreen> {
       .map((qs) => qs.docs.map(Todo.fromSnapshot).toList());
 
   Future<void> _addTodo(User user) async {
-    if (_taskController.text.trim().isEmpty) return;
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('todos')
-        .add({
-      'text'      : _taskController.text.trim(),
-      'createdAt' : FieldValue.serverTimestamp(),
-      'dueAt'     : _selectedDue == null ? null : Timestamp.fromDate(_selectedDue!),
-    });
-    _taskController.clear();
-    setState(() => _selectedDue = null);
+    if (_taskController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a task description')),
+      );
+      return;
+    }
+
+    setState(() => _isUploading = true);
+
+    try {
+      String? imageUrl;
+
+      // If there's a selected image, upload it first
+      if (_selectedImagePath != null) {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('users/${user.uid}/images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+        await storageRef.putFile(File(_selectedImagePath!));
+        imageUrl = await storageRef.getDownloadURL();
+      }
+
+      // Add the todo with the image URL if available
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('todos')
+          .add({
+        'text': _taskController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'dueAt': _selectedDue == null ? null : Timestamp.fromDate(_selectedDue!),
+        'imageUrl': imageUrl ?? _selectedImageUrl,
+      });
+
+      // Reset all input fields
+      _taskController.clear();
+      setState(() {
+        _selectedDue = null;
+        _selectedImagePath = null;
+        _selectedImageUrl = null;
+        _isUploading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task added successfully!')),
+      );
+    } catch (e) {
+      setState(() => _isUploading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add task: $e')),
+      );
+    }
+  }
+
+  Future<void> _selectImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImagePath = pickedFile.path;
+        // No need to upload yet - we'll do that when adding the task
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image selected! Add a task to save it.')),
+      );
+    }
   }
 
   List<Todo> _applyFilters() {
@@ -125,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _readableDue(DateTime due) {
-    final now  = DateTime.now();
+    final now = DateTime.now();
     final diff = due.difference(now);
 
     if (diff.inDays == 0) {
@@ -141,14 +181,49 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Due on ${DateFormat.yMMMd().format(due)}';
   }
 
-  /* ────────────────────────── UI helpers ─────────────────────────────── */
-
   IconButton _micButton() => IconButton(
     icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
     onPressed: _isListening ? _stopListening : _startListening,
   );
 
-  /* ───────────────────────────────── UI ──────────────────────────────── */
+  Future<void> _startListening() async {
+    if (await _speech.initialize(
+      onStatus: (s) => debugPrint('Speech status: $s'),
+      onError: (e) => debugPrint('Speech error : $e'),
+    )) {
+      setState(() => _isListening = true);
+      _speech.listen(
+        onResult: (r) => setState(() => _taskController.text = r.recognizedWords),
+      );
+    }
+  }
+
+  void _stopListening() {
+    _speech.stop();
+    setState(() => _isListening = false);
+  }
+
+  Widget _imageButton(User user) {
+    // Show different button based on whether an image is selected
+    if (_selectedImagePath != null) {
+      return ElevatedButton.icon(
+        icon: const Icon(Icons.check_circle),
+        label: const Text('Image Selected', style: TextStyle(color: Colors.green, fontSize: 14)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: const BorderSide(color: Colors.green, width: 2),
+        ),
+        onPressed: () => _selectImage(),
+      );
+    } else {
+      return ElevatedButton.icon(
+        icon: const Icon(Icons.image),
+        label: const Text('Add Image', style: TextStyle(color: Colors.black, fontSize: 14)),
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
+        onPressed: () => _selectImage(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +235,6 @@ class _HomeScreenState extends State<HomeScreen> {
       home: Stack(
         children: [
           Scaffold(
-            /* ───────────── AppBar ───────────── */
             appBar: AppBar(
               title: Row(
                 children: [
@@ -184,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         content: const Text('Are you sure you want to log out?'),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                          TextButton(onPressed: () => Navigator.pop(context, true),  child: const Text('Log Out')),
+                          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Log Out')),
                         ],
                       ),
                     );
@@ -193,72 +267,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-
-            /* ───────────── Drawer ───────────── */
-            endDrawer: Drawer(
-              child: Column(
-                children: [
-                  DrawerHeader(
-                    decoration: BoxDecoration(color: Theme.of(context).primaryColor),
-                    child: const Center(
-                      child: Text('Side Window', style: TextStyle(color: Colors.white, fontSize: 20)),
-                    ),
-                  ),
-                  ListTile(leading: const Icon(Icons.info),     title: const Text('Option 1'), onTap: () {}),
-                  ListTile(leading: const Icon(Icons.settings), title: const Text('Option 2'), onTap: () {}),
-                  const SizedBox(height: 16),
-
-                  /* drawer todo-list */
-                  Expanded(
-                    child: _filtered?.isEmpty ?? true
-                        ? const Center(child: Text('No TODOs found'))
-                        : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: _filtered!.length,
-                      itemBuilder: (_, i) {
-                        final t = _filtered![i];
-                        return ListTile(
-                          leading: Checkbox(
-                            value: t.completedAt != null,
-                            onChanged: (v) => FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(user!.uid)
-                                .collection('todos')
-                                .doc(t.id)
-                                .update({'completedAt': v! ? FieldValue.serverTimestamp() : null}),
-                          ),
-                          trailing: const Icon(Icons.arrow_forward_ios),
-                          title: Text(
-                            t.text,
-                            style: t.completedAt != null ? const TextStyle(decoration: TextDecoration.lineThrough) : null,
-                          ),
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(todo: t))),
-                        );
-                      },
-                    ),
-                  ),
-
-                  /* drawer add-row (with mic) */
-                  Container(
-                    color: Colors.green[100],
-                    padding: const EdgeInsets.all(32),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: TextField(controller: _taskController, decoration: const InputDecoration(labelText: 'Enter Task:')),
-                        ),
-                        const SizedBox(width: 8),
-                        _micButton(),
-                        ElevatedButton(child: const Text('Add'), onPressed: () => user == null ? null : _addTodo(user)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            /* ───────────── Body ───────────── */
             body: LayoutBuilder(
               builder: (_, c) {
                 final wide = c.maxWidth > 600;
@@ -269,7 +277,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: width,
                     child: Column(
                       children: [
-                        /* search bar + filter */
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: TextField(
@@ -292,8 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        /* main todo-list */
                         Expanded(
                           child: _filtered?.isEmpty ?? true
                               ? const Center(child: Text('No TODOs found'))
@@ -302,64 +307,126 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: _filtered!.length,
                             itemBuilder: (_, i) {
                               final t = _filtered![i];
-                              return ListTile(
-                                leading: Checkbox(
-                                  value: t.completedAt != null,
-                                  onChanged: (v) => FirebaseFirestore.instance
-                                      .collection('users')
-                                      .doc(user!.uid)
-                                      .collection('todos')
-                                      .doc(t.id)
-                                      .update({'completedAt': v! ? FieldValue.serverTimestamp() : null}),
+                              return Card(
+                                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                child: ListTile(
+                                  leading: Checkbox(
+                                    value: t.completedAt != null,
+                                    onChanged: (v) => FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(user!.uid)
+                                        .collection('todos')
+                                        .doc(t.id)
+                                        .update({'completedAt': v! ? FieldValue.serverTimestamp() : null}),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (t.imageUrl != null)
+                                        const Icon(Icons.image, color: Colors.blue),
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.arrow_forward_ios),
+                                    ],
+                                  ),
+                                  title: Text(
+                                    t.text,
+                                    style: t.completedAt != null
+                                        ? const TextStyle(decoration: TextDecoration.lineThrough)
+                                        : null,
+                                  ),
+                                  subtitle: t.dueAt == null
+                                      ? null
+                                      : Text(_readableDue(t.dueAt!), style: const TextStyle(fontSize: 14)),
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => DetailScreen(todo: t)),
+                                  ),
                                 ),
-                                trailing: const Icon(Icons.arrow_forward_ios),
-                                title: Text(
-                                  t.text,
-                                  style: t.completedAt != null ? const TextStyle(decoration: TextDecoration.lineThrough) : null,
-                                ),
-                                subtitle: t.dueAt == null ? null : Text(_readableDue(t.dueAt!), style: const TextStyle(fontSize: 14)),
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(todo: t))),
                               );
                             },
                           ),
                         ),
-
-                        /* add-task bar (mic permanently visible) */
                         Container(
                           color: Colors.green[100],
-                          padding: const EdgeInsets.all(32),
+                          padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Show selected image preview
+                              if (_selectedImagePath != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Image.file(
+                                          File(_selectedImagePath!),
+                                          width: 60,
+                                          height: 60,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: const Text('Image will be attached to your task'),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.close),
+                                        onPressed: () => setState(() => _selectedImagePath = null),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               Row(
                                 children: [
                                   Expanded(
                                     child: TextField(
                                       controller: _taskController,
-                                      decoration: const InputDecoration(labelText: 'Enter Task:'),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Enter Task:',
+                                        border: OutlineInputBorder(),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   _micButton(),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
-                                    child: const Text('Add Task', style: TextStyle(color: Colors.black, fontSize: 14)),
-                                    onPressed: () => user == null ? null : _addTodo(user),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                      ),
+                                      child: _isUploading
+                                          ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                          : const Text('Add Task',
+                                          style: TextStyle(color: Colors.black, fontSize: 16)),
+                                      onPressed: _isUploading ? null : () => user == null ? null : _addTodo(user),
+                                    ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 16),
-
-                              /* due-date & misc buttons (unchanged) */
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
                                 children: [
-                                  ElevatedButton(
+                                  // Date & Time button
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.calendar_today, size: 16),
                                     style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
-                                    child: Text(
+                                    label: Text(
                                       _selectedDue == null
-                                          ? 'Date & Time'
+                                          ? 'Set Due Date'
                                           : 'Due: ${DateFormat.yMMMd().add_jm().format(_selectedDue!)}',
                                       style: const TextStyle(color: Colors.black, fontSize: 14),
                                     ),
@@ -394,25 +461,39 @@ class _HomeScreenState extends State<HomeScreen> {
                                             content: Column(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                ElevatedButton(onPressed: () async { await pickDateTime(); Navigator.pop(context); }, child: const Text('Pick Date & Time')),
+                                                ElevatedButton(
+                                                  onPressed: () async {
+                                                    await pickDateTime();
+                                                    Navigator.pop(context);
+                                                  },
+                                                  child: const Text('Pick Date & Time'),
+                                                ),
                                                 ElevatedButton(
                                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                                  onPressed: () { setState(() => _selectedDue = null); Navigator.pop(context); },
+                                                  onPressed: () {
+                                                    setState(() => _selectedDue = null);
+                                                    Navigator.pop(context);
+                                                  },
                                                   child: const Text('Remove Date & Time'),
                                                 ),
                                               ],
                                             ),
-                                            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))],
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context),
+                                                child: const Text('Cancel'),
+                                              ),
+                                            ],
                                           ),
                                         );
                                       }
                                     },
                                   ),
-                                  _placeholderBtn('Image'),
-                                  _placeholderBtn('Description'),
+
+                                  // Image button - now only selects image without creating a task
+                                  _imageButton(user!),
                                 ],
                               ),
-                              const SizedBox(height: 16),
                             ],
                           ),
                         ),
@@ -423,55 +504,8 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-
-          /* ───────────── simple left-side panel ───────────── */
-          if (_drawerOpen)
-            Positioned(
-              top: 0,
-              left: 0,
-              bottom: 0,
-              width: 300,
-              child: Material(
-                elevation: 8,
-                color: Colors.white,
-                child: Column(
-                  children: [
-                    Container(
-                      color: Colors.black,
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Side Panel', style: TextStyle(color: Colors.white, fontSize: 18)),
-                          IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => setState(() => _drawerOpen = false)),
-                        ],
-                      ),
-                    ),
-                    const Expanded(
-                      child: Center(
-                        child: Text('Hello', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
-
-  /* helper for placeholder buttons */
-  ElevatedButton _placeholderBtn(String label) => ElevatedButton(
-    style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
-    child: Text(label, style: const TextStyle(color: Colors.black, fontSize: 14)),
-    onPressed: () => showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Add $label'),
-        content: const SizedBox.shrink(),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
-      ),
-    ),
-  );
 }

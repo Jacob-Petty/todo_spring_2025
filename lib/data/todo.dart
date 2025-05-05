@@ -5,17 +5,18 @@ class Todo {
   final String text;
   final String? uid;
   final DateTime createdAt;
-  final DateTime? completedAt;
+  DateTime? completedAt;
   final DateTime? dueAt;
-  final String? imageUrl; // New field for image URL
+  // Change from 'late final' to just a regular variable so it can be modified
+  String? imageUrl;
 
   Todo({
     required this.id,
     required this.text,
     required this.uid,
     required this.createdAt,
-    required this.completedAt,
-    required this.dueAt,
+    this.completedAt,
+    this.dueAt,
     this.imageUrl,
   });
 
@@ -25,8 +26,8 @@ class Todo {
       'uid': uid,
       'createdAt': Timestamp.fromDate(createdAt),
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
-      'dueAt': dueAt != null ? Timestamp.fromDate(dueAt!) : null
-      // 'imageUrl': imageUrl, // Include image URL in Firestore document
+      'dueAt': dueAt != null ? Timestamp.fromDate(dueAt!) : null,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -34,12 +35,12 @@ class Todo {
     final data = snapshot.data() as Map<String, dynamic>;
     return Todo(
       id: snapshot.id,
-      text: data['text'],
+      text: data['text'] ?? '',
       uid: data['uid'],
       createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : DateTime.now(),
       completedAt: data['completedAt'] != null ? (data['completedAt'] as Timestamp).toDate() : null,
       dueAt: data['dueAt'] != null ? (data['dueAt'] as Timestamp).toDate() : null,
-      imageUrl: data['imageUrl'], // Map image URL from Firestore document
+      imageUrl: data['imageUrl'],
     );
   }
 }
