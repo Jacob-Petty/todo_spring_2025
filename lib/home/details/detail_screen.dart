@@ -28,6 +28,9 @@ class _DetailScreenState extends State<DetailScreen> {
   String? _errorMessage;
   TaskPriority _priority = TaskPriority.medium;
 
+  // Add this to track edit mode
+  bool _isEditMode = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +66,9 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _pickAndUploadImage() async {
+    // Prevent this action if not in edit mode
+    if (!_isEditMode) return;
+
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
@@ -125,6 +131,9 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _deleteImage() async {
+    // Prevent this action if not in edit mode
+    if (!_isEditMode) return;
+
     if (widget.todo.imageUrl == null) return;
 
     setState(() {
@@ -262,34 +271,36 @@ class _DetailScreenState extends State<DetailScreen> {
                     height: 200,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Change Image'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[800],
-                          foregroundColor: Colors.white,
+                if (_isEditMode) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Change Image'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[800],
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: _pickAndUploadImage,
                         ),
-                        onPressed: _pickAndUploadImage,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.delete),
-                        label: const Text('Delete Image'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red[800],
-                          foregroundColor: Colors.white,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.delete),
+                          label: const Text('Delete Image'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[800],
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: _deleteImage,
                         ),
-                        onPressed: _deleteImage,
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             )
           else
@@ -303,16 +314,18 @@ class _DetailScreenState extends State<DetailScreen> {
                     'No image attached to this task',
                     style: TextStyle(color: Colors.grey),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('Add Image'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[800],
-                      foregroundColor: Colors.white,
+                  if (_isEditMode) ...[
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add_photo_alternate),
+                      label: const Text('Add Image'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[800],
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _pickAndUploadImage,
                     ),
-                    onPressed: _pickAndUploadImage,
-                  ),
+                  ],
                   const SizedBox(height: 16),
                 ],
               ),
@@ -334,7 +347,8 @@ class _DetailScreenState extends State<DetailScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
+        _isEditMode
+            ? Row(
           children: [
             _PriorityButton(
               label: 'High',
@@ -357,10 +371,63 @@ class _DetailScreenState extends State<DetailScreen> {
               onTap: () => setState(() => _priority = TaskPriority.low),
             ),
           ],
+        )
+            : Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: _getColorForPriority(_priority).withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _getColorForPriority(_priority),
+              width: 2,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.flag,
+                color: _getColorForPriority(_priority),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _getPriorityLabel(_priority),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
       ],
     );
+  }
+
+  // Helper method to get priority color
+  Color _getColorForPriority(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.high:
+        return Colors.red;
+      case TaskPriority.medium:
+        return Colors.orange;
+      case TaskPriority.low:
+        return Colors.green;
+    }
+  }
+
+  // Helper method to get priority label
+  String _getPriorityLabel(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.high:
+        return 'High Priority';
+      case TaskPriority.medium:
+        return 'Medium Priority';
+      case TaskPriority.low:
+        return 'Low Priority';
+    }
   }
 
   Future<void> _updateTask() async {
@@ -412,6 +479,10 @@ class _DetailScreenState extends State<DetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task updated successfully!')),
         );
+        // Exit edit mode after successful update
+        setState(() {
+          _isEditMode = false;
+        });
       }
     } catch (error) {
       print('Error updating task: $error');
@@ -503,6 +574,13 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
+  // Toggle edit mode
+  void _toggleEditMode() {
+    setState(() {
+      _isEditMode = !_isEditMode;
+    });
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -564,6 +642,14 @@ class _DetailScreenState extends State<DetailScreen> {
         foregroundColor: Colors.white,
         title: const Text('Task Details'),
         actions: [
+          // Edit button
+          if (!_isEditMode)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Edit Task',
+              onPressed: _toggleEditMode,
+            ),
+          // Delete button (always visible)
           IconButton(
             icon: const Icon(Icons.delete),
             tooltip: 'Delete Task',
@@ -588,7 +674,8 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            TextField(
+            _isEditMode
+                ? TextField(
               controller: _titleController,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
@@ -604,6 +691,25 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
               maxLines: null,
               textInputAction: TextInputAction.next,
+            )
+                : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey, width: 1.0),
+                ),
+                width: double.infinity,
+                child: Text(
+                  widget.todo.text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -617,7 +723,8 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            TextField(
+            _isEditMode
+                ? TextField(
               controller: _descriptionController,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
@@ -633,6 +740,30 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
               maxLines: 3,
               textInputAction: TextInputAction.next,
+            )
+                : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey, width: 1.0),
+                ),
+                width: double.infinity,
+                child: Text(
+                  widget.todo.description ?? 'No description',
+                  style: TextStyle(
+                    color: widget.todo.description == null || widget.todo.description!.isEmpty
+                        ? Colors.grey
+                        : Colors.white,
+                    fontSize: 16,
+                    fontStyle: widget.todo.description == null || widget.todo.description!.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -669,7 +800,8 @@ class _DetailScreenState extends State<DetailScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Row(
+          child: _isEditMode
+              ? Row(
             children: [
               Expanded(
                 child: ElevatedButton(
@@ -680,6 +812,31 @@ class _DetailScreenState extends State<DetailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text('Save Changes'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _toggleEditMode,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ],
+          )
+              : Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _toggleEditMode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[800],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Edit Task'),
                 ),
               ),
             ],
