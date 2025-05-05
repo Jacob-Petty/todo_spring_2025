@@ -9,6 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../data/todo.dart';
 
+// Priority levels for tasks
+enum TaskPriority { high, medium, low }
+
 class DetailScreen extends StatefulWidget {
   final Todo todo;
 
@@ -19,22 +22,43 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
-  late TextEditingController _textController;
+  late TextEditingController _titleController;
+  late TextEditingController _descriptionController;
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isDarkMode = true;
+  TaskPriority _priority = TaskPriority.medium;
 
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.todo.text);
+    _titleController = TextEditingController(text: widget.todo.text);
+    _descriptionController = TextEditingController(text: widget.todo.description ?? '');
+
+    // Set initial priority from todo
+    if (widget.todo.priority != null) {
+      switch (widget.todo.priority) {
+        case 'high':
+          _priority = TaskPriority.high;
+          break;
+        case 'medium':
+          _priority = TaskPriority.medium;
+          break;
+        case 'low':
+          _priority = TaskPriority.low;
+          break;
+      }
+    }
+
     print('Todo image URL in initState: ${widget.todo.imageUrl}');
     print('Todo due date: ${widget.todo.dueAt}');
+    print('Todo priority: ${widget.todo.priority}');
+    print('Todo description: ${widget.todo.description}');
   }
 
   @override
   void dispose() {
-    _textController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -297,8 +321,55 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Future<void> _updateText(String newText) async {
-    if (newText.trim().isEmpty || newText == widget.todo.text) return;
+  Widget _buildPrioritySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Priority',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _PriorityButton(
+              label: 'High',
+              color: Colors.red,
+              isSelected: _priority == TaskPriority.high,
+              onTap: () => setState(() => _priority = TaskPriority.high),
+            ),
+            const SizedBox(width: 8),
+            _PriorityButton(
+              label: 'Medium',
+              color: Colors.orange,
+              isSelected: _priority == TaskPriority.medium,
+              onTap: () => setState(() => _priority = TaskPriority.medium),
+            ),
+            const SizedBox(width: 8),
+            _PriorityButton(
+              label: 'Low',
+              color: Colors.green,
+              isSelected: _priority == TaskPriority.low,
+              onTap: () => setState(() => _priority = TaskPriority.low),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Future<void> _updateTask() async {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task title cannot be empty')),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -311,12 +382,31 @@ class _DetailScreenState extends State<DetailScreen> {
         throw Exception('You must be logged in to update tasks');
       }
 
+      // Convert priority to string
+      String priorityString;
+      switch (_priority) {
+        case TaskPriority.high:
+          priorityString = 'high';
+          break;
+        case TaskPriority.medium:
+          priorityString = 'medium';
+          break;
+        case TaskPriority.low:
+          priorityString = 'low';
+          break;
+      }
+
+      // Update Firestore document
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('todos')
           .doc(widget.todo.id)
-          .update({'text': newText});
+          .update({
+        'text': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'priority': priorityString,
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -488,9 +578,9 @@ class _DetailScreenState extends State<DetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Task name section
+            // Task title section
             const Text(
-              'Task Description',
+              'Task Title',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -499,11 +589,11 @@ class _DetailScreenState extends State<DetailScreen> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: _textController,
+              controller: _titleController,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: 'Enter task description',
+                hintText: 'Enter task title',
                 hintStyle: TextStyle(color: Colors.grey),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Colors.grey, width: 1.0),
@@ -513,9 +603,42 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
               ),
               maxLines: null,
-              textInputAction: TextInputAction.done,
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 24),
+
+            // Task description section
+            const Text(
+              'Description',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _descriptionController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter task description (optional)',
+                hintStyle: TextStyle(color: Colors.grey),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue, width: 2.0),
+                ),
+              ),
+              maxLines: 3,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 24),
+
+            // Priority section
+            _buildPrioritySection(),
+            const SizedBox(height: 16),
 
             // Image section
             _buildImageSection(),
@@ -550,13 +673,65 @@ class _DetailScreenState extends State<DetailScreen> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () => _updateText(_textController.text),
+                  onPressed: _updateTask,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green[800],
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text('Save Changes'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PriorityButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PriorityButton({
+    required this.label,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.3) : Colors.grey[800],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey,
+              width: 2,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isSelected ? Icons.check_circle : Icons.circle_outlined,
+                color: isSelected ? color : Colors.grey,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ],
