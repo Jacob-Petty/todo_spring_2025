@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:todo_spring_2025/settings/settings_screen.dart'; // Add this import
 
 import '../../data/todo.dart';
 import 'details/detail_screen.dart';
@@ -186,11 +187,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTodoList() {
     if (_filtered?.isEmpty ?? true) {
-      return const Expanded(
+      return Expanded(
         child: Center(
           child: Text(
             'No tasks found',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+              fontSize: 16,
+            ),
           ),
         ),
       );
@@ -316,45 +320,70 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).colorScheme.background,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.background),
+              child: Text(
+                'Options',
+                style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.home, color: Theme.of(context).colorScheme.onBackground),
+              title: Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(color: Colors.grey),
+            ListTile(
+              leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onBackground),
+              title: Text('Calendar', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/calendar');
+              },
+            ),
+            const Divider(color: Colors.grey),
+            ListTile(
+              leading: Icon(Icons.settings, color: Theme.of(context).colorScheme.onBackground),
+              title: Text('Settings', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/settings');
+              },
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('My Tasks'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
+        backgroundColor: Theme.of(context).colorScheme.background,
+        foregroundColor: Theme.of(context).colorScheme.onBackground,
+        title: Row(
+          children: [
+            const SizedBox(width: 0),
+            Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+          ],
+        ),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, size: 32), // Increased size of the hamburger icon
+            padding: const EdgeInsets.all(4.0), // Reduced padding around the icon
             onPressed: () {
-              // Navigate to settings screen
-              // Navigator.pushNamed(context, '/settings');
+              Scaffold.of(context).openDrawer();
             },
           ),
-          TextButton(
-            style: TextButton.styleFrom(backgroundColor: Colors.grey[800]),
-            child: const Text('Log Out', style: TextStyle(color: Colors.white)),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  backgroundColor: Colors.grey[900],
-                  title: const Text('Log Out', style: TextStyle(color: Colors.white)),
-                  content: const Text('Are you sure you want to log out?',
-                      style: TextStyle(color: Colors.white)),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel', style: TextStyle(color: Colors.white)),
-                    ),
-                    TextButton(
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Log Out'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirm == true) await FirebaseAuth.instance.signOut();
-            },
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Image.asset(
+              'assets/images/logo.png',
+              height: 75,
+              width: 75,
+            ),
           ),
         ],
       ),
@@ -372,10 +401,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(16),
                     child: TextField(
                       controller: _searchController,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                         labelText: 'Search Tasks',
+<<<<<<< Updated upstream
                         labelStyle: const TextStyle(color: Colors.grey),
                         suffixIcon: Stack(
                           alignment: Alignment.center,
@@ -413,6 +443,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                           ],
+=======
+                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.filter_list, color: Colors.grey),
+                          onPressed: () async {
+                            final res = await showModalBottomSheet<FilterSheetResult>(
+                              context: context,
+                              builder: (_) => FilterSheet(initialFilters: _filters),
+                            );
+                            if (res != null) setState(() => _filters = res);
+                          },
+>>>>>>> Stashed changes
                         ),
                         enabledBorder: const OutlineInputBorder(
                           borderSide: BorderSide(color: Colors.grey, width: 1.0),
@@ -434,10 +476,12 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.green[700],
+        backgroundColor: Colors.black,
         child: const Icon(Icons.add, color: Colors.white),
         onPressed: _showCreateTaskPopup,
       ),
     );
   }
+
 }
+
