@@ -7,8 +7,9 @@ class Todo {
   final DateTime createdAt;
   DateTime? completedAt;
   final DateTime? dueAt;
-  // Change from 'late final' to just a regular variable so it can be modified
   String? imageUrl;
+  final String? description;
+  final String? priority;
 
   Todo({
     required this.id,
@@ -18,6 +19,8 @@ class Todo {
     this.completedAt,
     this.dueAt,
     this.imageUrl,
+    this.description,
+    this.priority,
   });
 
   Map<String, dynamic> toSnapshot() {
@@ -28,6 +31,8 @@ class Todo {
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
       'dueAt': dueAt != null ? Timestamp.fromDate(dueAt!) : null,
       'imageUrl': imageUrl,
+      'description': description,
+      'priority': priority ?? 'medium', // Default to medium if not set
     };
   }
 
@@ -41,6 +46,8 @@ class Todo {
       completedAt: data['completedAt'] != null ? (data['completedAt'] as Timestamp).toDate() : null,
       dueAt: data['dueAt'] != null ? (data['dueAt'] as Timestamp).toDate() : null,
       imageUrl: data['imageUrl'],
+      description: data['description'],
+      priority: data['priority'] ?? 'medium',
     );
   }
 }
