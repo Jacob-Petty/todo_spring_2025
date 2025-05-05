@@ -74,8 +74,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.background,
-        foregroundColor: Theme.of(context).colorScheme.onBackground,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         title: const Text('Calendar'),
       ),
       drawer: Drawer(
@@ -83,31 +83,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.background),
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
               child: Text(
                 'Options',
-                style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 24),
               ),
             ),
             ListTile(
-              leading: Icon(Icons.home, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.home, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/home');
               },
             ),
             const Divider(color: Colors.grey),
             ListTile(
-              leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Calendar', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Calendar', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pop(context); // Close drawer if already on Calendar
               },
             ),
             const Divider(color: Colors.grey),
             ListTile(
-              leading: Icon(Icons.settings, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Settings', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.settings, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/settings');
               },
@@ -115,7 +115,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ],
         ),
       ),
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -140,21 +140,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
               },
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.background,
+                  color: Theme.of(context).colorScheme.surface,
                   shape: BoxShape.circle,
                 ),
                 selectedDecoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onBackground,
+                  color: Theme.of(context).colorScheme.onSurface,
                   shape: BoxShape.circle,
                 ),
                 defaultTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                weekendTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                selectedTextStyle: TextStyle(color: Theme.of(context).colorScheme.background),
-                todayTextStyle: TextStyle(color: Theme.of(context).colorScheme.onBackground),
+                weekendTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues()),
+                selectedTextStyle: TextStyle(color: Theme.of(context).colorScheme.surface),
+                todayTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 markersAlignment: Alignment.bottomCenter,
                 markersMaxCount: 3,
                 markerDecoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onBackground, // Adjusts to light/dark mode
+                  color: Theme.of(context).colorScheme.onSurface, // Adjusts to light/dark mode
                   shape: BoxShape.circle,
                 ),
               ),
@@ -170,8 +170,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 rightChevronIcon: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurface),
               ),
               daysOfWeekStyle: DaysOfWeekStyle(
-                weekdayStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                weekendStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                weekdayStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues()),
+                weekendStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues()),
               ),
             ),
             const SizedBox(height: 16),
@@ -189,7 +189,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       subtitle: task['dueAt'] != null
                           ? Text(
                               'Due: ${DateFormat.yMMMd().add_jm().format((task['dueAt'] as Timestamp).toDate())}',
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues()),
                             )
                           : null,
                     );
@@ -202,7 +202,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   child: Text(
                     'No tasks due on this day',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(),
                       fontSize: 16,
                     ),
                   ),

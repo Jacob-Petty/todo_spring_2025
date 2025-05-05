@@ -377,7 +377,7 @@ class _DetailScreenState extends State<DetailScreen> {
             : Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: _getColorForPriority(_priority).withOpacity(0.3),
+            color: _getColorForPriority(_priority).withValues(),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _getColorForPriority(_priority),
@@ -484,7 +484,7 @@ class _DetailScreenState extends State<DetailScreen> {
             : Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: _getDueDateColor(_selectedDueDate!).withOpacity(0.3),
+            color: _getDueDateColor(_selectedDueDate!).withValues(),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _getDueDateColor(_selectedDueDate!),
@@ -1074,7 +1074,7 @@ class _PriorityButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? color.withOpacity(0.3) : Colors.grey[800],
+            color: isSelected ? color.withValues() : Colors.grey[800],
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected ? color : Colors.grey,

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../main.dart'; // Import to access MyApp.of(context)
 
 class SettingsScreen extends StatefulWidget {
@@ -34,8 +32,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.background,
-        foregroundColor: Theme.of(context).colorScheme.onBackground,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         title: const Text('Settings'),
       ),
       drawer: Drawer(
@@ -43,31 +41,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.background),
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
               child: Text(
                 'Options',
-                style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 24),
               ),
             ),
             ListTile(
-              leading: Icon(Icons.home, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.home, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/home');
               },
             ),
             const Divider(color: Colors.grey),
             ListTile(
-              leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Calendar', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Calendar', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/calendar');
               },
             ),
             const Divider(color: Colors.grey),
             ListTile(
-              leading: Icon(Icons.settings, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Settings', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.settings, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pop(context);
               },
@@ -83,14 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () async {
               final user = FirebaseAuth.instance.currentUser;
               if (user != null) {
-                final userDoc = await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user.uid)
-                    .get();
 
-                final dateJoined = userDoc.exists && userDoc.data() != null
-                    ? (userDoc.data()!['createdAt'] as Timestamp?)?.toDate()
-                    : null;
 
                 showDialog(
                   context: context,
@@ -101,9 +92,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Email: ${user.email ?? 'N/A'}'),
-                        Text(
-                          'Date Joined: ${dateJoined != null ? DateFormat.yMMMd().format(dateJoined) : 'N/A'}',
-                        ),
                       ],
                     ),
                     actions: [
@@ -121,10 +109,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: Icon(Icons.brightness_6, color: Theme.of(context).colorScheme.onSurface),
             title: Text('Dark Mode', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-            trailing: Switch(
+            trailing: Switch.adaptive(
               value: _isDarkMode,
               onChanged: _toggleTheme,
               activeColor: Theme.of(context).colorScheme.onSurface,
+              inactiveThumbColor: Colors.grey,
+              inactiveTrackColor: Colors.grey[400],
             ),
           ),
           const Divider(color: Colors.grey),
@@ -158,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
     );
   }
 }

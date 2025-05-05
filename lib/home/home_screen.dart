@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:todo_spring_2025/settings/settings_screen.dart'; // Add this import
 
 import '../../data/todo.dart';
 import 'details/detail_screen.dart';
@@ -192,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             'No tasks found',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurface.withValues(),
               fontSize: 16,
             ),
           ),
@@ -224,8 +223,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ListTile(
               leading: Checkbox(
                 value: todo.completedAt != null,
-                fillColor: MaterialStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(MaterialState.selected)) {
+                fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(WidgetState.selected)) {
                     return _getPriorityColor(todo);
                   }
                   return Colors.grey;
@@ -320,37 +319,37 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.background),
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
               child: Text(
                 'Options',
-                style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 24),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 24),
               ),
             ),
             ListTile(
-              leading: Icon(Icons.home, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.home, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pop(context);
               },
             ),
             const Divider(color: Colors.grey),
             ListTile(
-              leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Calendar', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Calendar', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/calendar');
               },
             ),
             const Divider(color: Colors.grey),
             ListTile(
-              leading: Icon(Icons.settings, color: Theme.of(context).colorScheme.onBackground),
-              title: Text('Settings', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+              leading: Icon(Icons.settings, color: Theme.of(context).colorScheme.onSurface),
+              title: Text('Settings', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/settings');
               },
@@ -359,18 +358,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.background,
-        foregroundColor: Theme.of(context).colorScheme.onBackground,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         title: Row(
           children: [
             const SizedBox(width: 0),
-            Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+            Text('Home', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, size: 32), // Increased size of the hamburger icon
-            padding: const EdgeInsets.all(4.0), // Reduced padding around the icon
+            icon: const Icon(Icons.menu, size: 32),
+            padding: const EdgeInsets.all(4.0),
             onPressed: () {
               Scaffold.of(context).openDrawer();
             },
@@ -403,9 +402,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: _searchController,
                       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withValues()),
                         labelText: 'Search Tasks',
-<<<<<<< Updated upstream
                         labelStyle: const TextStyle(color: Colors.grey),
                         suffixIcon: Stack(
                           alignment: Alignment.center,
@@ -443,18 +441,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                           ],
-=======
-                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.filter_list, color: Colors.grey),
-                          onPressed: () async {
-                            final res = await showModalBottomSheet<FilterSheetResult>(
-                              context: context,
-                              builder: (_) => FilterSheet(initialFilters: _filters),
-                            );
-                            if (res != null) setState(() => _filters = res);
-                          },
->>>>>>> Stashed changes
                         ),
                         enabledBorder: const OutlineInputBorder(
                           borderSide: BorderSide(color: Colors.grey, width: 1.0),
@@ -482,6 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
 
 }
 

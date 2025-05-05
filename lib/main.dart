@@ -7,14 +7,24 @@ import 'home/home_screen.dart';
 import 'calendar/calendar_screen.dart';
 import 'login/login_screen.dart';
 import 'settings/settings_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(MyApp());
+
+  // Load stored theme mode
+  final prefs = await SharedPreferences.getInstance();
+  final isDark = prefs.getBool('isDarkMode') ?? true;
+
+  runApp(MyApp(initialThemeMode: isDark ? ThemeMode.dark : ThemeMode.light));
 }
 
 class MyApp extends StatefulWidget {
+  final ThemeMode initialThemeMode;
+
+  const MyApp({super.key, required this.initialThemeMode});
+
   static _MyAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<_MyAppState>();
 
@@ -23,9 +33,18 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.system;
+  late ThemeMode _themeMode;
 
-  void setThemeMode(ThemeMode mode) {
+  @override
+  void initState() {
+    super.initState();
+    _themeMode = widget.initialThemeMode;
+  }
+
+  void setThemeMode(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', mode == ThemeMode.dark);
+
     setState(() {
       _themeMode = mode;
     });
@@ -37,17 +56,24 @@ class _MyAppState extends State<MyApp> {
       title: 'TODO Spring 2025',
       themeMode: _themeMode,
       theme: ThemeData.light(useMaterial3: true).copyWith(
-        colorScheme: const ColorScheme.light(
-          background: Colors.white,
-          onBackground: Colors.black,
-          onSurface: Colors.black,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.green,
+          brightness: Brightness.light,
         ),
         textTheme: GoogleFonts.sairaCondensedTextTheme(ThemeData.light().textTheme),
       ),
       darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
-        colorScheme: const ColorScheme.dark(
+        colorScheme: const ColorScheme(
+          brightness: Brightness.dark,
+          primary: Colors.white,
+          onPrimary: Colors.black,
+          secondary: Colors.white,
+          onSecondary: Colors.black,
+          error: Colors.red,
+          onError: Colors.white,
           background: Colors.black,
           onBackground: Colors.white,
+          surface: Colors.black,
           onSurface: Colors.white,
         ),
         textTheme: GoogleFonts.sairaCondensedTextTheme(ThemeData.dark().textTheme),
