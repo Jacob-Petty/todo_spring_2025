@@ -377,7 +377,7 @@ class _DetailScreenState extends State<DetailScreen> {
             : Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: _getColorForPriority(_priority).withValues(),
+            color: _getColorForPriority(_priority).withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _getColorForPriority(_priority),
@@ -484,7 +484,7 @@ class _DetailScreenState extends State<DetailScreen> {
             : Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: _getDueDateColor(_selectedDueDate!).withValues(),
+            color: _getDueDateColor(_selectedDueDate!).withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _getDueDateColor(_selectedDueDate!),
