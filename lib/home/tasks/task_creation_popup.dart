@@ -6,6 +6,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:speech_to_text/speech_recognition_result.dart';
 import '../../data/todo.dart';
 
 // Priority levels for tasks
@@ -31,10 +33,85 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
   String? _imagePath;
   bool _isLoading = false;
 
+  // Speech recognition
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechEnabled = false;
+  bool _isListeningForTitle = false;
+  bool _isListeningForDescription = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  // Initialize speech recognition
+  void _initSpeech() async {
+    _speechEnabled = await _speech.initialize();
+    setState(() {});
+  }
+
+  // Start listening for speech
+  void _startListeningForTitle() {
+    if (_speechEnabled) {
+      setState(() {
+        _isListeningForTitle = true;
+        _isListeningForDescription = false;
+      });
+      _speech.listen(
+        onResult: _onSpeechResultForTitle,
+        listenFor: const Duration(seconds: 30),
+        localeId: "en_US",
+        cancelOnError: true,
+        partialResults: true,
+      );
+    }
+  }
+
+  void _startListeningForDescription() {
+    if (_speechEnabled) {
+      setState(() {
+        _isListeningForTitle = false;
+        _isListeningForDescription = true;
+      });
+      _speech.listen(
+        onResult: _onSpeechResultForDescription,
+        listenFor: const Duration(seconds: 30),
+        localeId: "en_US",
+        cancelOnError: true,
+        partialResults: true,
+      );
+    }
+  }
+
+  // Stop listening for speech
+  void _stopListening() {
+    _speech.stop();
+    setState(() {
+      _isListeningForTitle = false;
+      _isListeningForDescription = false;
+    });
+  }
+
+  // Handle speech results for title
+  void _onSpeechResultForTitle(SpeechRecognitionResult result) {
+    setState(() {
+      _titleController.text = result.recognizedWords;
+    });
+  }
+
+  // Handle speech results for description
+  void _onSpeechResultForDescription(SpeechRecognitionResult result) {
+    setState(() {
+      _descriptionController.text = result.recognizedWords;
+    });
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -263,7 +340,7 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
               ),
               const SizedBox(height: 16),
 
-              // Title field
+              // Title field with voice input
               const Text(
                 'Title',
                 style: TextStyle(
@@ -272,24 +349,39 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
                 ),
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: _titleController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'Enter task title',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey, width: 1.0),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _titleController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Enter task title',
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        border: const OutlineInputBorder(),
+                        enabledBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.blue, width: 2.0),
+                        ),
+                        suffixIcon: _isListeningForTitle
+                            ? IconButton(
+                          icon: const Icon(Icons.mic, color: Colors.red),
+                          onPressed: _stopListening,
+                        )
+                            : IconButton(
+                          icon: const Icon(Icons.mic, color: Colors.white),
+                          onPressed: _speechEnabled ? _startListeningForTitle : null,
+                        ),
+                      ),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue, width: 2.0),
-                  ),
-                ),
+                ],
               ),
               const SizedBox(height: 16),
 
-              // Description field
+              // Description field with voice input
               const Text(
                 'Description',
                 style: TextStyle(
@@ -301,15 +393,24 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
               TextField(
                 controller: _descriptionController,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Enter task description',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  border: const OutlineInputBorder(),
+                  enabledBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey, width: 1.0),
                   ),
-                  focusedBorder: OutlineInputBorder(
+                  focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.blue, width: 2.0),
+                  ),
+                  suffixIcon: _isListeningForDescription
+                      ? IconButton(
+                    icon: const Icon(Icons.mic, color: Colors.red),
+                    onPressed: _stopListening,
+                  )
+                      : IconButton(
+                    icon: const Icon(Icons.mic, color: Colors.white),
+                    onPressed: _speechEnabled ? _startListeningForDescription : null,
                   ),
                 ),
                 maxLines: 3,
@@ -392,9 +493,10 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
               ),
               const SizedBox(height: 16),
 
-              // Due date
+              // Due date and Image buttons in a row with equal width
               Row(
                 children: [
+                  // Due date button
                   Expanded(
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.calendar_today),
@@ -402,6 +504,7 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
                         _dueDate == null
                             ? 'Set Due Date'
                             : 'Due: ${DateFormat.yMMMd().add_jm().format(_dueDate!)}',
+                        overflow: TextOverflow.ellipsis,
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey[800],
@@ -410,6 +513,7 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
                       onPressed: _selectDueDate,
                     ),
                   ),
+                  // Add clear button if date is set
                   if (_dueDate != null) ...[
                     const SizedBox(width: 8),
                     IconButton(
@@ -421,16 +525,22 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
               ),
               const SizedBox(height: 16),
 
-              // Image section
+              // Image section with equal width button
               _imagePath == null
-                  ? ElevatedButton.icon(
-                icon: const Icon(Icons.image),
-                label: const Text('Add Image'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[800],
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: _pickImage,
+                  ? Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.image),
+                      label: const Text('Add Image'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[800],
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _pickImage,
+                    ),
+                  ),
+                ],
               )
                   : Column(
                 children: [
