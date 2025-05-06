@@ -219,21 +219,38 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+
   String _readableDue(DateTime due) {
     final now = DateTime.now();
     final diff = due.difference(now);
-
-    if (diff.inDays == 0) {
-      final h = diff.inHours + 1;
-      return 'Due in $h hour${h > 1 ? 's' : ''}';
+    if (diff.isNegative) {
+      final overdue = now.difference(due);
+      final days = overdue.inDays;
+      final hours = overdue.inHours % 24;
+      final minutes = overdue.inMinutes % 60;
+      if (days > 0) {
+        return 'Overdue by $days day${days > 1 ? 's' : ''}, $hours hour${hours > 1 ? 's' : ''}, $minutes minute${minutes > 1 ? 's' : ''}';
+      } else if (hours > 0) {
+        return 'Overdue by $hours hour${hours > 1 ? 's' : ''}, $minutes minute${minutes > 1 ? 's' : ''}';
+      } else if (minutes > 0) {
+        return 'Overdue by $minutes minute${minutes > 1 ? 's' : ''}';
+      } else {
+        return 'Overdue by less than a minute';
+      }
+    } else {
+      final days = diff.inDays;
+      final hours = diff.inHours % 24;
+      final minutes = diff.inMinutes % 60;
+      if (days > 0) {
+        return 'Due in $days day${days > 1 ? 's' : ''}, $hours hour${hours > 1 ? 's' : ''}, $minutes minute${minutes > 1 ? 's' : ''}';
+      } else if (hours > 0) {
+        return 'Due in $hours hour${hours > 1 ? 's' : ''}, $minutes minute${minutes > 1 ? 's' : ''}';
+      } else if (minutes > 0) {
+        return 'Due in $minutes minute${minutes > 1 ? 's' : ''}';
+      } else {
+        return 'Due in less than a minute';
+      }
     }
-    if (diff.inDays == 1) {
-      return 'Due tomorrow at ${DateFormat.jm().format(due)}';
-    }
-    if (diff.inDays < 7) {
-      return 'Due in ${diff.inDays} day${diff.inDays > 1 ? 's' : ''}';
-    }
-    return 'Due on ${DateFormat.yMMMd().format(due)}';
   }
 
   Future<void> _showCreateTaskPopup() async {
