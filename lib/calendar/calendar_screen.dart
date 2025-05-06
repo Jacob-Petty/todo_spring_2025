@@ -73,6 +73,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  String _formatDueDate(DateTime dueAt) {
+    final now = DateTime.now();
+    final difference = dueAt.difference(now);
+
+    if (difference.isNegative) {
+      if (now.day == dueAt.day && now.month == dueAt.month && now.year == dueAt.year) {
+        final overdueMinutes = -difference.inMinutes;
+        final overdueHours = overdueMinutes ~/ 60;
+        final remainingMinutes = overdueMinutes % 60;
+        return 'Overdue by ${overdueHours > 0 ? '$overdueHours hr${overdueHours > 1 ? 's' : ''} ' : ''}${remainingMinutes > 0 ? '$remainingMinutes min${remainingMinutes > 1 ? 's' : ''}' : ''}';
+      }
+      return 'Overdue';
+    }
+
+    if (now.day == dueAt.day && now.month == dueAt.month && now.year == dueAt.year) {
+      final hours = difference.inHours;
+      final minutes = difference.inMinutes % 60;
+      return 'Due in ${hours > 0 ? '$hours hr${hours > 1 ? 's' : ''} ' : ''}${minutes > 0 ? '$minutes min${minutes > 1 ? 's' : ''}' : ''}';
+    }
+
+    return 'Due at ${DateFormat.jm().format(dueAt)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -255,15 +278,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                         subtitle: task['dueAt'] != null
                             ? Text(
-                                'Due: ${DateFormat.yMMMd().add_jm().format((task['dueAt'] as Timestamp).toDate())}',
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues()),
+                                _formatDueDate((task['dueAt'] as Timestamp).toDate()),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                               )
                             : null,
                       ),
                     );
                   },
                   separatorBuilder: (context, index) => Divider(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(),
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     thickness: 1,
                   ),
                 ),
