@@ -10,6 +10,7 @@ class Todo {
   String? imageUrl;
   final String? description;
   final String? priority;
+  final String? category; // Added category field
 
   Todo({
     required this.id,
@@ -21,6 +22,7 @@ class Todo {
     this.imageUrl,
     this.description,
     this.priority,
+    this.category, // Added to constructor
   });
 
   Map<String, dynamic> toSnapshot() {
@@ -33,6 +35,7 @@ class Todo {
       'imageUrl': imageUrl,
       'description': description,
       'priority': priority ?? 'medium', // Default to medium if not set
+      'category': category, // Added to map
     };
   }
 
@@ -48,6 +51,7 @@ class Todo {
       imageUrl: data['imageUrl'],
       description: data['description'],
       priority: data['priority'] ?? 'medium',
+      category: data['category'], // Added to factory constructor
     );
   }
 }

@@ -5,12 +5,14 @@ class FilterSheetResult {
   final String order;
   final String? priority;
   final String? dueDate;
+  final String? category; // Added category field
 
   FilterSheetResult({
     required this.sortBy,
     required this.order,
     this.priority,
     this.dueDate,
+    this.category, // Added to constructor
   });
 }
 
@@ -31,6 +33,7 @@ class _FilterSheetState extends State<FilterSheet> {
   String _order = 'ascending';
   String? _priority;
   String? _dueDate;
+  String? _category; // Added category state
 
   @override
   void initState() {
@@ -38,6 +41,7 @@ class _FilterSheetState extends State<FilterSheet> {
     _order = widget.initialFilters.order;
     _priority = widget.initialFilters.priority;
     _dueDate = widget.initialFilters.dueDate;
+    _category = widget.initialFilters.category; // Initialize from props
     super.initState();
   }
 
@@ -97,6 +101,7 @@ class _FilterSheetState extends State<FilterSheet> {
                                 DropdownMenuItem(value: 'date', child: Text('Creation Date')),
                                 DropdownMenuItem(value: 'due', child: Text('Due Date')),
                                 DropdownMenuItem(value: 'priority', child: Text('Priority')),
+                                DropdownMenuItem(value: 'category', child: Text('Category')), // Added category option
                                 DropdownMenuItem(value: 'completed', child: Text('Completion')),
                               ],
                               onChanged: (value) {
@@ -147,6 +152,23 @@ class _FilterSheetState extends State<FilterSheet> {
                 ),
                 const SizedBox(height: 24),
 
+                // Category Filter (new)
+                Text('Category', style: TextStyle(color: textColor)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildCategoryChip('Development', 'development', Colors.blue),
+                    _buildCategoryChip('Debugging', 'debugging', Colors.purple),
+                    _buildCategoryChip('Testing', 'testing', Colors.amber),
+                    _buildCategoryChip('Deployment', 'deployment', Colors.teal),
+                    _buildCategoryChip('Docs', 'docs', Colors.indigo),
+                    _buildCategoryChip('Communication', 'communication', Colors.pink),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
                 // Priority Filter
                 Text('Priority', style: TextStyle(color: textColor)),
                 const SizedBox(height: 8),
@@ -176,7 +198,7 @@ class _FilterSheetState extends State<FilterSheet> {
                 const SizedBox(height: 24),
 
                 // Active Filters Row
-                if (_priority != null || _dueDate != null)
+                if (_priority != null || _dueDate != null || _category != null) // Added category to condition
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Column(
@@ -234,6 +256,30 @@ class _FilterSheetState extends State<FilterSheet> {
                                   ],
                                 ),
                               ),
+                            // Add category chip to active filters
+                            if (_category != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getCategoryColor(_category!).withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: _getCategoryColor(_category!)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _getCategoryDisplayText(_category!),
+                                      style: TextStyle(color: textColor, fontSize: 12),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    InkWell(
+                                      onTap: () => setState(() => _category = null),
+                                      child: const Icon(Icons.close, size: 14, color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ],
@@ -254,6 +300,7 @@ class _FilterSheetState extends State<FilterSheet> {
                           setState(() {
                             _priority = null;
                             _dueDate = null;
+                            _category = null; // Reset category filter
                             _sortBy = 'date';
                             _order = 'descending';
                           });
@@ -276,6 +323,7 @@ class _FilterSheetState extends State<FilterSheet> {
                               order: _order,
                               priority: _priority,
                               dueDate: _dueDate,
+                              category: _category, // Include category in result
                             ),
                           );
                         },
@@ -289,6 +337,32 @@ class _FilterSheetState extends State<FilterSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  // Build category chip filter
+  Widget _buildCategoryChip(String label, String value, Color color) {
+    final isSelected = _category == value;
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      showCheckmark: false,
+      backgroundColor: Colors.grey[800],
+      selectedColor: color.withOpacity(0.3),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.grey[400],
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? color : Colors.grey[700]!,
+        width: isSelected ? 2 : 1,
+      ),
+      onSelected: (_) {
+        setState(() {
+          _category = isSelected ? null : value;
+        });
+      },
     );
   }
 
@@ -366,5 +440,31 @@ class _FilterSheetState extends State<FilterSheet> {
       default:
         return Colors.blue;
     }
+  }
+
+  // Get color for category
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'development':
+        return Colors.blue;
+      case 'debugging':
+        return Colors.purple;
+      case 'testing':
+        return Colors.amber;
+      case 'deployment':
+        return Colors.teal;
+      case 'docs':
+        return Colors.indigo;
+      case 'communication':
+        return Colors.pink;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  // Get display text for category
+  String _getCategoryDisplayText(String category) {
+    final capitalize = category.substring(0, 1).toUpperCase() + category.substring(1);
+    return capitalize;
   }
 }

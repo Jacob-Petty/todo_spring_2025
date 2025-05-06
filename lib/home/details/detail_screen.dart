@@ -12,6 +12,9 @@ import '../../data/todo.dart';
 // Priority levels for tasks
 enum TaskPriority { high, medium, low }
 
+// Task categories
+enum TaskCategory { development, debugging, testing, deployment, docs, communication }
+
 class DetailScreen extends StatefulWidget {
   final Todo todo;
 
@@ -27,6 +30,7 @@ class _DetailScreenState extends State<DetailScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   TaskPriority _priority = TaskPriority.medium;
+  TaskCategory _category = TaskCategory.development; // Default category
   DateTime? _selectedDueDate;
 
   // Add this to track edit mode
@@ -54,10 +58,35 @@ class _DetailScreenState extends State<DetailScreen> {
       }
     }
 
+    // Set initial category from todo
+    if (widget.todo.category != null) {
+      switch (widget.todo.category) {
+        case 'development':
+          _category = TaskCategory.development;
+          break;
+        case 'debugging':
+          _category = TaskCategory.debugging;
+          break;
+        case 'testing':
+          _category = TaskCategory.testing;
+          break;
+        case 'deployment':
+          _category = TaskCategory.deployment;
+          break;
+        case 'docs':
+          _category = TaskCategory.docs;
+          break;
+        case 'communication':
+          _category = TaskCategory.communication;
+          break;
+      }
+    }
+
     print('Todo image URL in initState: ${widget.todo.imageUrl}');
     print('Todo due date: ${widget.todo.dueAt}');
     print('Todo priority: ${widget.todo.priority}');
     print('Todo description: ${widget.todo.description}');
+    print('Todo category: ${widget.todo.category}');
   }
 
   @override
@@ -65,6 +94,59 @@ class _DetailScreenState extends State<DetailScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  // Helper methods for date and time formatting
+  String _formatTime(DateTime date) {
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today, ${_formatTime(date)}';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday, ${_formatTime(date)}';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago, ${_formatTime(date)}';
+    } else {
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${_formatTime(date)}';
+    }
+  }
+
+  String _formatDueDate(DateTime dueDate) {
+    final now = DateTime.now();
+    final difference = dueDate.difference(now);
+
+    if (difference.inDays == 0) {
+      final hours = difference.inHours;
+      if (hours > 0) {
+        return 'Due in $hours hour${hours != 1 ? 's' : ''}, ${_formatTime(dueDate)}';
+      } else {
+        final minutes = difference.inMinutes;
+        if (minutes > 0) {
+          return 'Due in $minutes minute${minutes != 1 ? 's' : ''}, ${_formatTime(dueDate)}';
+        } else {
+          return 'Due now, ${_formatTime(dueDate)}';
+        }
+      }
+    } else if (difference.inDays > 0) {
+      if (difference.inDays == 1) {
+        return 'Due tomorrow, ${_formatTime(dueDate)}';
+      } else if (difference.inDays < 7) {
+        return 'Due in ${difference.inDays} days, ${_formatTime(dueDate)}';
+      } else {
+        return 'Due on ${DateFormat('yyyy-MM-dd').format(dueDate)}, ${_formatTime(dueDate)}';
+      }
+    } else { // Past due date
+      if (difference.inDays == -1) {
+        return 'Due yesterday, ${_formatTime(dueDate)}';
+      } else {
+        return 'Overdue by ${-difference.inDays} day${-difference.inDays != 1 ? 's' : ''}, ${_formatTime(dueDate)}';
+      }
+    }
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -192,148 +274,155 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  Widget _buildImageSection() {
+  // Category section widget
+  Widget _buildCategorySection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Image',
+          'Category',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 16),
-
-        if (_isLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: CircularProgressIndicator(),
+        const SizedBox(height: 12),
+        _isEditMode
+            ? Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey, width: 1.0),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          width: double.infinity,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<TaskCategory>(
+              value: _category,
+              dropdownColor: Colors.grey[800],
+              style: const TextStyle(color: Colors.white),
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+              items: TaskCategory.values.map((TaskCategory category) {
+                return DropdownMenuItem<TaskCategory>(
+                  value: category,
+                  child: Text(_getCategoryDisplayText(category)),
+                );
+              }).toList(),
+              onChanged: (TaskCategory? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _category = newValue;
+                  });
+                }
+              },
             ),
-          )
-        else if (_errorMessage != null)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
-              child: Column(
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                  const SizedBox(height: 8),
-                  Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[800],
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => setState(() => _errorMessage = null),
-                    child: const Text('Dismiss'),
-                  ),
-                ],
+          ),
+        )
+            : Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: _getCategoryColor(_category).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _getCategoryColor(_category),
+              width: 2,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getCategoryIcon(_category),
+                color: _getCategoryColor(_category),
+                size: 20,
               ),
-            ),
-          )
-        else if (widget.todo.imageUrl != null)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: widget.todo.imageUrl!,
-                    placeholder: (context, url) => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.error, color: Colors.red, size: 48),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Error loading image: $error',
-                              style: const TextStyle(color: Colors.red),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    fit: BoxFit.cover,
-                    height: 200,
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                _getCategoryDisplayText(_category),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-                if (_isEditMode) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Change Image'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[800],
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: _pickAndUploadImage,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.delete),
-                          label: const Text('Delete Image'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red[800],
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: _deleteImage,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            )
-          else
-            Center(
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  const Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No image attached to this task',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  if (_isEditMode) ...[
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.add_photo_alternate),
-                      label: const Text('Add Image'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[800],
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: _pickAndUploadImage,
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                ],
               ),
-            ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
       ],
     );
+  }
+
+  // Get category color
+  Color _getCategoryColor(TaskCategory category) {
+    switch (category) {
+      case TaskCategory.development:
+        return Colors.blue;
+      case TaskCategory.debugging:
+        return Colors.purple;
+      case TaskCategory.testing:
+        return Colors.amber;
+      case TaskCategory.deployment:
+        return Colors.teal;
+      case TaskCategory.docs:
+        return Colors.indigo;
+      case TaskCategory.communication:
+        return Colors.pink;
+    }
+  }
+
+  // Get category icon
+  IconData _getCategoryIcon(TaskCategory category) {
+    switch (category) {
+      case TaskCategory.development:
+        return Icons.code;
+      case TaskCategory.debugging:
+        return Icons.bug_report;
+      case TaskCategory.testing:
+        return Icons.science;
+      case TaskCategory.deployment:
+        return Icons.rocket_launch;
+      case TaskCategory.docs:
+        return Icons.description;
+      case TaskCategory.communication:
+        return Icons.chat;
+    }
+  }
+
+  // Get display text for category
+  String _getCategoryDisplayText(TaskCategory category) {
+    switch (category) {
+      case TaskCategory.development:
+        return 'Development';
+      case TaskCategory.debugging:
+        return 'Debugging';
+      case TaskCategory.testing:
+        return 'Testing';
+      case TaskCategory.deployment:
+        return 'Deployment';
+      case TaskCategory.docs:
+        return 'Docs';
+      case TaskCategory.communication:
+        return 'Communication';
+    }
+  }
+
+  // Convert TaskCategory enum to string
+  String _categoryToString(TaskCategory category) {
+    switch (category) {
+      case TaskCategory.development:
+        return 'development';
+      case TaskCategory.debugging:
+        return 'debugging';
+      case TaskCategory.testing:
+        return 'testing';
+      case TaskCategory.deployment:
+        return 'deployment';
+      case TaskCategory.docs:
+        return 'docs';
+      case TaskCategory.communication:
+        return 'communication';
+    }
   }
 
   Widget _buildPrioritySection() {
@@ -352,25 +441,109 @@ class _DetailScreenState extends State<DetailScreen> {
         _isEditMode
             ? Row(
           children: [
-            _PriorityButton(
-              label: 'High',
-              color: Colors.red,
-              isSelected: _priority == TaskPriority.high,
-              onTap: () => setState(() => _priority = TaskPriority.high),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _priority = TaskPriority.high),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _priority == TaskPriority.high ? Colors.red.withOpacity(0.2) : Colors.grey[800],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _priority == TaskPriority.high ? Colors.red : Colors.grey,
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _priority == TaskPriority.high ? Icons.check_circle : Icons.circle_outlined,
+                        color: _priority == TaskPriority.high ? Colors.red : Colors.grey,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'High',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: _priority == TaskPriority.high ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
             const SizedBox(width: 8),
-            _PriorityButton(
-              label: 'Medium',
-              color: Colors.orange,
-              isSelected: _priority == TaskPriority.medium,
-              onTap: () => setState(() => _priority = TaskPriority.medium),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _priority = TaskPriority.medium),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _priority == TaskPriority.medium ? Colors.orange.withOpacity(0.2) : Colors.grey[800],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _priority == TaskPriority.medium ? Colors.orange : Colors.grey,
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _priority == TaskPriority.medium ? Icons.check_circle : Icons.circle_outlined,
+                        color: _priority == TaskPriority.medium ? Colors.orange : Colors.grey,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Medium',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: _priority == TaskPriority.medium ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
             const SizedBox(width: 8),
-            _PriorityButton(
-              label: 'Low',
-              color: Colors.green,
-              isSelected: _priority == TaskPriority.low,
-              onTap: () => setState(() => _priority = TaskPriority.low),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _priority = TaskPriority.low),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _priority == TaskPriority.low ? Colors.green.withOpacity(0.2) : Colors.grey[800],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _priority == TaskPriority.low ? Colors.green : Colors.grey,
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _priority == TaskPriority.low ? Icons.check_circle : Icons.circle_outlined,
+                        color: _priority == TaskPriority.low ? Colors.green : Colors.grey,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Low',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: _priority == TaskPriority.low ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         )
@@ -395,7 +568,7 @@ class _DetailScreenState extends State<DetailScreen> {
               const SizedBox(width: 8),
               Text(
                 _getPriorityLabel(_priority),
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
@@ -406,6 +579,30 @@ class _DetailScreenState extends State<DetailScreen> {
         const SizedBox(height: 8),
       ],
     );
+  }
+
+  // Helper method to get priority color
+  Color _getColorForPriority(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.high:
+        return Colors.red;
+      case TaskPriority.medium:
+        return Colors.orange;
+      case TaskPriority.low:
+        return Colors.green;
+    }
+  }
+
+  // Helper method to get priority label
+  String _getPriorityLabel(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.high:
+        return 'High Priority';
+      case TaskPriority.medium:
+        return 'Medium Priority';
+      case TaskPriority.low:
+        return 'Low Priority';
+    }
   }
 
   // Build the due date section
@@ -602,28 +799,148 @@ class _DetailScreenState extends State<DetailScreen> {
     return Colors.blue;
   }
 
-  // Helper method to get priority color
-  Color _getColorForPriority(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.high:
-        return Colors.red;
-      case TaskPriority.medium:
-        return Colors.orange;
-      case TaskPriority.low:
-        return Colors.green;
-    }
-  }
+  Widget _buildImageSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Image',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 16),
 
-  // Helper method to get priority label
-  String _getPriorityLabel(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.high:
-        return 'High Priority';
-      case TaskPriority.medium:
-        return 'Medium Priority';
-      case TaskPriority.low:
-        return 'Low Priority';
-    }
+        if (_isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_errorMessage != null)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[800],
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => setState(() => _errorMessage = null),
+                    child: const Text('Dismiss'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (widget.todo.imageUrl != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: widget.todo.imageUrl!,
+                    placeholder: (context, url) => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.error, color: Colors.red, size: 48),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Error loading image: $error',
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    fit: BoxFit.cover,
+                    height: 200,
+                  ),
+                ),
+                if (_isEditMode) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Change Image'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[800],
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: _pickAndUploadImage,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.delete),
+                          label: const Text('Delete Image'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[800],
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: _deleteImage,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            )
+          else
+            Center(
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  const Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No image attached to this task',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  if (_isEditMode) ...[
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add_photo_alternate),
+                      label: const Text('Add Image'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[800],
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _pickAndUploadImage,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+      ],
+    );
   }
 
   Future<void> _updateTask() async {
@@ -659,6 +976,9 @@ class _DetailScreenState extends State<DetailScreen> {
           break;
       }
 
+      // Convert category to string
+      String categoryString = _categoryToString(_category);
+
       // Update Firestore document
       await FirebaseFirestore.instance
           .collection('users')
@@ -669,6 +989,7 @@ class _DetailScreenState extends State<DetailScreen> {
         'text': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
         'priority': priorityString,
+        'category': categoryString, // Add category to update
         'dueAt': _selectedDueDate != null ? Timestamp.fromDate(_selectedDueDate!) : null,
       });
 
@@ -783,226 +1104,178 @@ class _DetailScreenState extends State<DetailScreen> {
     });
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today, ${_formatTime(date)}';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday, ${_formatTime(date)}';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago, ${_formatTime(date)}';
-    } else {
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${_formatTime(date)}';
-    }
-  }
-
-  String _formatDueDate(DateTime dueDate) {
-    final now = DateTime.now();
-    final difference = dueDate.difference(now);
-
-    if (difference.inDays == 0) {
-      final hours = difference.inHours;
-      if (hours > 0) {
-        return 'Due in $hours hour${hours != 1 ? 's' : ''}, ${_formatTime(dueDate)}';
-      } else {
-        final minutes = difference.inMinutes;
-        if (minutes > 0) {
-          return 'Due in $minutes minute${minutes != 1 ? 's' : ''}, ${_formatTime(dueDate)}';
-        } else {
-          return 'Due now, ${_formatTime(dueDate)}';
-        }
-      }
-    } else if (difference.inDays > 0) {
-      if (difference.inDays == 1) {
-        return 'Due tomorrow, ${_formatTime(dueDate)}';
-      } else if (difference.inDays < 7) {
-        return 'Due in ${difference.inDays} days, ${_formatTime(dueDate)}';
-      } else {
-        return 'Due on ${DateFormat('yyyy-MM-dd').format(dueDate)}, ${_formatTime(dueDate)}';
-      }
-    } else { // Past due date
-      if (difference.inDays == -1) {
-        return 'Due yesterday, ${_formatTime(dueDate)}';
-      } else {
-        return 'Overdue by ${-difference.inDays} day${-difference.inDays != 1 ? 's' : ''}, ${_formatTime(dueDate)}';
-      }
-    }
-  }
-
-  String _formatTime(DateTime date) {
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
         backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          title: const Text('Task Details'),
-          actions: [
-            // Edit button
-            if (!_isEditMode)
-              IconButton(
-                icon: const Icon(Icons.edit),
-                tooltip: 'Edit Task',
-                onPressed: _toggleEditMode,
-              ),
-            // Delete button (always visible)
+        foregroundColor: Colors.white,
+        title: const Text('Task Details'),
+        actions: [
+          // Edit button
+          if (!_isEditMode)
             IconButton(
-              icon: const Icon(Icons.delete),
-              tooltip: 'Delete Task',
-              onPressed: _isLoading ? null : _deleteTodo,
+              icon: const Icon(Icons.edit),
+              tooltip: 'Edit Task',
+              onPressed: _toggleEditMode,
             ),
+          // Delete button (always visible)
+          IconButton(
+            icon: const Icon(Icons.delete),
+            tooltip: 'Delete Task',
+            onPressed: _isLoading ? null : _deleteTodo,
+          ),
+        ],
+      ),
+      body: _isLoading && _errorMessage == null
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Task title section
+            const Text(
+              'Task Title',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _isEditMode
+                ? TextField(
+              controller: _titleController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter task title',
+                hintStyle: TextStyle(color: Colors.grey),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue, width: 2.0),
+                ),
+              ),
+              maxLines: null,
+              textInputAction: TextInputAction.next,
+            )
+                : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey, width: 1.0),
+                ),
+                width: double.infinity,
+                child: Text(
+                  widget.todo.text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Task description section
+            const Text(
+              'Description',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _isEditMode
+                ? TextField(
+              controller: _descriptionController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter task description (optional)',
+                hintStyle: TextStyle(color: Colors.grey),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.blue, width: 2.0),
+                ),
+              ),
+              maxLines: 3,
+              textInputAction: TextInputAction.next,
+            )
+                : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey, width: 1.0),
+                ),
+                width: double.infinity,
+                child: Text(
+                  widget.todo.description ?? 'No description',
+                  style: TextStyle(
+                    color: widget.todo.description == null || widget.todo.description!.isEmpty
+                        ? Colors.grey
+                        : Colors.white,
+                    fontSize: 16,
+                    fontStyle: widget.todo.description == null || widget.todo.description!.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Category section (new)
+            _buildCategorySection(),
+            const SizedBox(height: 16),
+
+            // Due Date section
+            _buildDueDateSection(),
+            const SizedBox(height: 16),
+
+            // Priority section
+            _buildPrioritySection(),
+            const SizedBox(height: 16),
+
+            // Image section
+            _buildImageSection(),
+
+            // Show creation and completion dates
+            const SizedBox(height: 24),
+            Text(
+              'Created: ${_formatDate(widget.todo.createdAt)}',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            if (widget.todo.completedAt != null)
+              Text(
+                'Completed: ${_formatDate(widget.todo.completedAt!)}',
+                style: const TextStyle(color: Colors.green),
+              ),
+            if (widget.todo.dueAt != null && _selectedDueDate == null) // Show original due date if not modified
+              Text(
+                'Due: ${_formatDueDate(widget.todo.dueAt!)}',
+                style: TextStyle(
+                  color: widget.todo.dueAt!.isBefore(DateTime.now())
+                      ? Colors.red
+                      : Colors.orange,
+                ),
+              ),
           ],
         ),
-        body: _isLoading && _errorMessage == null
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-    child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-    // Task title section
-    const Text(
-    'Task Title',
-    style: TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    ),
-    ),
-    const SizedBox(height: 8),
-    _isEditMode
-    ? TextField(
-    controller: _titleController,
-    style: const TextStyle(color: Colors.white),
-    decoration: const InputDecoration(
-    border: OutlineInputBorder(),
-    hintText: 'Enter task title',
-    hintStyle: TextStyle(color: Colors.grey),
-    enabledBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: Colors.grey, width: 1.0),
-    ),
-    focusedBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: Colors.blue, width: 2.0),
-    ),
-    ),
-    maxLines: null,
-    textInputAction: TextInputAction.next,
-    )
-        : Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
-    child: Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-    color: Colors.grey[900],
-    borderRadius: BorderRadius.circular(8),
-    border: Border.all(color: Colors.grey, width: 1.0),
-    ),
-    width: double.infinity,
-    child: Text(
-    widget.todo.text,
-    style: const TextStyle(
-    color: Colors.white,
-    fontSize: 16,
-    ),
-    ),
-    ),
-    ),
-    const SizedBox(height: 24),
-
-    // Task description section
-    const Text(
-    'Description',
-    style: TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-    ),
-    ),
-    const SizedBox(height: 8),
-    _isEditMode
-    ? TextField(
-    controller: _descriptionController,
-    style: const TextStyle(color: Colors.white),
-    decoration: const InputDecoration(
-    border: OutlineInputBorder(),
-    hintText: 'Enter task description (optional)',
-    hintStyle: TextStyle(color: Colors.grey),
-    enabledBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: Colors.grey, width: 1.0),
-    ),
-    focusedBorder: OutlineInputBorder(
-    borderSide: BorderSide(color: Colors.blue, width: 2.0),
-    ),
-    ),
-    maxLines: 3,
-    textInputAction: TextInputAction.next,
-    )
-        : Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey, width: 1.0),
-        ),
-        width: double.infinity,
-        child: Text(
-          widget.todo.description ?? 'No description',
-          style: TextStyle(
-            color: widget.todo.description == null || widget.todo.description!.isEmpty
-                ? Colors.grey
-                : Colors.white,
-            fontSize: 16,
-            fontStyle: widget.todo.description == null || widget.todo.description!.isEmpty
-                ? FontStyle.italic
-                : FontStyle.normal,
-          ),
-        ),
       ),
-    ),
-      const SizedBox(height: 24),
-
-      // Due Date section (new)
-      _buildDueDateSection(),
-      const SizedBox(height: 16),
-
-      // Priority section
-      _buildPrioritySection(),
-      const SizedBox(height: 16),
-
-      // Image section
-      _buildImageSection(),
-
-      // Show creation and completion dates
-      const SizedBox(height: 24),
-      Text(
-        'Created: ${_formatDate(widget.todo.createdAt)}',
-        style: const TextStyle(color: Colors.grey),
-      ),
-      if (widget.todo.completedAt != null)
-        Text(
-          'Completed: ${_formatDate(widget.todo.completedAt!)}',
-          style: const TextStyle(color: Colors.green),
-        ),
-      if (widget.todo.dueAt != null && _selectedDueDate == null) // Show original due date if not modified
-        Text(
-          'Due: ${_formatDueDate(widget.todo.dueAt!)}',
-          style: TextStyle(
-            color: widget.todo.dueAt!.isBefore(DateTime.now())
-                ? Colors.red
-                : Colors.orange,
-          ),
-        ),
-    ],
-    ),
-        ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -1043,58 +1316,6 @@ class _DetailScreenState extends State<DetailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text('Edit Task'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PriorityButton extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _PriorityButton({
-    required this.label,
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? color.withValues() : Colors.grey[800],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? color : Colors.grey,
-              width: 2,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isSelected ? Icons.check_circle : Icons.circle_outlined,
-                color: isSelected ? color : Colors.grey,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ],

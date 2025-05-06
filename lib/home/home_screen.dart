@@ -67,6 +67,11 @@ class _HomeScreenState extends State<HomeScreen> {
       list = list.where((t) => (t.priority ?? 'medium').toLowerCase() == _filters.priority).toList();
     }
 
+    // Apply category filter if set (new)
+    if (_filters.category != null) {
+      list = list.where((t) => (t.category ?? 'development').toLowerCase() == _filters.category).toList();
+    }
+
     // Apply due date filter if set
     if (_filters.dueDate != null) {
       final now = DateTime.now();
@@ -131,6 +136,23 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         });
         break;
+      case 'category': // New category sorting option
+        list.sort((a, b) {
+          final aCategory = a.category ?? 'development';
+          final bCategory = b.category ?? 'development';
+
+          // Sort by category alphabetically, then by creation date if same category
+          final categoryComparison = _filters.order == 'ascending'
+              ? aCategory.compareTo(bCategory)
+              : bCategory.compareTo(aCategory);
+
+          if (categoryComparison != 0) {
+            return categoryComparison;
+          } else {
+            return compareDates(a.createdAt, b.createdAt);
+          }
+        });
+        break;
       case 'due':
         list.sort((a, b) {
           if (a.dueAt == null && b.dueAt == null) {
@@ -151,6 +173,50 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return list;
+  }
+
+  // Get category icon
+  IconData _getCategoryIcon(String? category) {
+    if (category == null) return Icons.category;
+
+    switch (category.toLowerCase()) {
+      case 'development':
+        return Icons.code;
+      case 'debugging':
+        return Icons.bug_report;
+      case 'testing':
+        return Icons.science;
+      case 'deployment':
+        return Icons.rocket_launch;
+      case 'docs':
+        return Icons.description;
+      case 'communication':
+        return Icons.chat;
+      default:
+        return Icons.category;
+    }
+  }
+
+  // Get category color
+  Color _getCategoryColor(String? category) {
+    if (category == null) return Colors.grey;
+
+    switch (category.toLowerCase()) {
+      case 'development':
+        return Colors.blue;
+      case 'debugging':
+        return Colors.purple;
+      case 'testing':
+        return Colors.amber;
+      case 'deployment':
+        return Colors.teal;
+      case 'docs':
+        return Colors.indigo;
+      case 'communication':
+        return Colors.pink;
+      default:
+        return Colors.grey;
+    }
   }
 
   String _readableDue(DateTime due) {
@@ -191,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             'No tasks found',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               fontSize: 16,
             ),
           ),
@@ -223,8 +289,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ListTile(
               leading: Checkbox(
                 value: todo.completedAt != null,
-                fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) {
+                fillColor: MaterialStateProperty.resolveWith<Color>((states) {
+                  if (states.contains(MaterialState.selected)) {
                     return _getPriorityColor(todo);
                   }
                   return Colors.grey;
@@ -248,6 +314,27 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Show category with icon (new)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getCategoryIcon(todo.category),
+                        color: _getCategoryColor(todo.category),
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        todo.category != null
+                            ? todo.category!.substring(0, 1).toUpperCase() + todo.category!.substring(1)
+                            : 'Development',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getCategoryColor(todo.category),
+                        ),
+                      ),
+                    ],
+                  ),
                   if (todo.description != null && todo.description!.isNotEmpty)
                     Text(
                       todo.description!.length > 30
@@ -402,7 +489,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       controller: _searchController,
                       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withValues()),
+                        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                         labelText: 'Search Tasks',
                         labelStyle: const TextStyle(color: Colors.grey),
                         suffixIcon: Stack(
@@ -424,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 }
                               },
                             ),
-                            if (_filters.priority != null || _filters.dueDate != null)
+                            if (_filters.priority != null || _filters.dueDate != null || _filters.category != null) // Added category to condition
                               Positioned(
                                 top: 8,
                                 right: 8,
@@ -468,7 +555,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-
 }
-

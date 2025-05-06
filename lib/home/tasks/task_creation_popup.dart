@@ -11,6 +11,9 @@ import '../../data/todo.dart';
 // Priority levels for tasks
 enum TaskPriority { high, medium, low }
 
+// Task categories
+enum TaskCategory { development, debugging, testing, deployment, docs, communication }
+
 class TaskCreationPopup extends StatefulWidget {
   const TaskCreationPopup({super.key});
 
@@ -23,6 +26,7 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
   final _descriptionController = TextEditingController();
 
   TaskPriority _priority = TaskPriority.medium;
+  TaskCategory _category = TaskCategory.development; // Default category
   DateTime? _dueDate;
   String? _imagePath;
   bool _isLoading = false;
@@ -110,6 +114,42 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
     }
   }
 
+  // Convert TaskCategory enum to string
+  String _categoryToString(TaskCategory category) {
+    switch (category) {
+      case TaskCategory.development:
+        return 'development';
+      case TaskCategory.debugging:
+        return 'debugging';
+      case TaskCategory.testing:
+        return 'testing';
+      case TaskCategory.deployment:
+        return 'deployment';
+      case TaskCategory.docs:
+        return 'docs';
+      case TaskCategory.communication:
+        return 'communication';
+    }
+  }
+
+  // Get display text for category
+  String _getCategoryDisplayText(TaskCategory category) {
+    switch (category) {
+      case TaskCategory.development:
+        return 'Development';
+      case TaskCategory.debugging:
+        return 'Debugging';
+      case TaskCategory.testing:
+        return 'Testing';
+      case TaskCategory.deployment:
+        return 'Deployment';
+      case TaskCategory.docs:
+        return 'Docs';
+      case TaskCategory.communication:
+        return 'Communication';
+    }
+  }
+
   Future<void> _createTask() async {
     // Validate inputs
     if (_titleController.text.trim().isEmpty) {
@@ -153,6 +193,9 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
           break;
       }
 
+      // Convert category to string
+      String categoryString = _categoryToString(_category);
+
       // Create the task in Firestore
       await FirebaseFirestore.instance
           .collection('users')
@@ -162,6 +205,7 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
         'text': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
         'priority': priorityString,
+        'category': categoryString, // Add category to Firestore
         'createdAt': FieldValue.serverTimestamp(),
         'dueAt': _dueDate == null ? null : Timestamp.fromDate(_dueDate!),
         'imageUrl': imageUrl,
@@ -269,6 +313,47 @@ class _TaskCreationPopupState extends State<TaskCreationPopup> {
                   ),
                 ),
                 maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+
+              // Category dropdown
+              const Text(
+                'Category',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey, width: 1.0),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                width: double.infinity,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<TaskCategory>(
+                    value: _category,
+                    dropdownColor: Colors.grey[800],
+                    style: const TextStyle(color: Colors.white),
+                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                    items: TaskCategory.values.map((TaskCategory category) {
+                      return DropdownMenuItem<TaskCategory>(
+                        value: category,
+                        child: Text(_getCategoryDisplayText(category)),
+                      );
+                    }).toList(),
+                    onChanged: (TaskCategory? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _category = newValue;
+                        });
+                      }
+                    },
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
