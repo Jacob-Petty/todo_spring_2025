@@ -1,0 +1,66 @@
+plugins {
+    id "com.android.application"
+    // START: FlutterFire Configuration
+    id 'com.google.gms.google-services'
+    // END: FlutterFire Configuration
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace = "com.example.todo_spring_2025"
+    compileSdk = 35
+    ndkVersion = "27.0.12077973"
+
+    signingConfigs {
+        // Configure the debug keystore
+        debug {
+            storeFile file("/Users/jacobpetty/Desktop/app_development/todo_spring_2025/android/app/my-release-key.jks")  // Path to your debug keystore file
+            storePassword "Jacob123"  // Password for your keystore (for debug)
+            keyAlias "my-key-alias"  // Alias for the key (for debug)
+            keyPassword "Jacob123"  // Password for the key alias (for debug)
+        }
+
+        // Configure the release keystore
+        release {
+            storeFile file("/Users/jacobpetty/Desktop/app_development/todo_spring_2025/android/app/my-release-key.jks")  // Path to your release keystore file
+            storePassword "Jacob123"  // Password for your keystore (for release)
+            keyAlias "my-key-alias"  // Alias for the key (for release)
+            keyPassword "Jacob123"  // Password for the key alias (for release)
+        }
+    }
+
+    defaultConfig {
+        applicationId = "com.example.todo_spring_2025"
+        minSdk = 23
+        targetSdk = 35
+        versionCode = 1  // Increment this value with each release
+        versionName = "1.0.0"  // Version name for your app
+    }
+
+    buildTypes {
+        // Debug build configuration
+        debug {
+            signingConfig signingConfigs.debug
+        }
+
+        // Release build configuration
+        release {
+            signingConfig signingConfigs.release  // Use the release signing config for release builds
+        }
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+}

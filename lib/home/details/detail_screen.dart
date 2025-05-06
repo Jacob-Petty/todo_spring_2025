@@ -1006,6 +1006,9 @@ class _DetailScreenState extends State<DetailScreen> {
         setState(() {
           _isEditMode = false;
         });
+
+        // Notify the previous screen that changes were made
+        Navigator.of(context).pop(true);
       }
     } catch (error) {
       print('Error updating task: $error');
@@ -1080,7 +1083,7 @@ class _DetailScreenState extends State<DetailScreen> {
           .delete();
 
       if (mounted) {
-        Navigator.pop(context); // Go back to previous screen
+        Navigator.pop(context, true); // Go back to previous screen
       }
     } catch (error) {
       print('Error deleting task: $error');

@@ -69,7 +69,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .get();
 
     setState(() {
-      _tasksForSelectedDay = tasksSnapshot.docs.map((doc) => doc.data()).toList();
+      _tasksForSelectedDay = tasksSnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // Include the document ID
+        data['category'] = data['category'] ?? 'uncategorized'; // Ensure category is included
+        return data;
+      }).toList();
     });
   }
 
@@ -245,13 +250,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   itemBuilder: (context, index) {
                     final task = _tasksForSelectedDay[index];
                     return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        // Navigate to the detail screen and wait for it to return
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => DetailScreen(
                               todo: Todo(
-                                id: task['id'] ?? '',
+                                id: task['id'], // Pass the document ID
                                 text: task['text'] ?? 'Unnamed Task',
                                 uid: FirebaseAuth.instance.currentUser?.uid ?? '',
                                 description: task['description'] ?? '',
@@ -259,6 +265,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ? (task['dueAt'] as Timestamp).toDate()
                                     : null,
                                 priority: task['priority'] ?? 'medium',
+                                category: task['category'], // Pass the category
                                 imageUrl: task['imageUrl'],
                                 createdAt: task['createdAt'] != null
                                     ? (task['createdAt'] as Timestamp).toDate()
@@ -270,18 +277,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           ),
                         );
+
+                        // If the detail screen indicates that changes were made or a task was deleted, refresh the tasks
+                        if (result == true) {
+                          await _fetchTasksForDay(_selectedDay ?? _focusedDay);
+                          await _fetchTasksForMonth(_focusedDay);
+                        }
                       },
                       child: ListTile(
                         title: Text(
                           task['text'] ?? 'Unnamed Task',
                           style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                         ),
-                        subtitle: task['dueAt'] != null
-                            ? Text(
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (task['dueAt'] != null)
+                              Text(
                                 _formatDueDate((task['dueAt'] as Timestamp).toDate()),
                                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
-                              )
-                            : null,
+                              ),
+                            if (task['category'] != null)
+                              Text(
+                                'Category: ${task['category'][0].toUpperCase()}${task['category'].substring(1)}',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -309,3 +331,4 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 }
+
