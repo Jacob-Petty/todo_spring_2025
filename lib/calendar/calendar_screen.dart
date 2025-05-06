@@ -3,6 +3,8 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../home/details/detail_screen.dart'; // Import DetailScreen
+import '../data/todo.dart'; // Import Todo
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -16,6 +18,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime? _selectedDay;
   Map<DateTime, int> _tasksPerDay = {};
   List<Map<String, dynamic>> _tasksForSelectedDay = [];
+  CalendarFormat _calendarFormat = CalendarFormat.month; // Add calendar format state
 
   @override
   void initState() {
@@ -77,6 +80,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         foregroundColor: Theme.of(context).colorScheme.onSurface,
         title: const Text('Calendar'),
+        actions: [
+          DropdownButton<CalendarFormat>(
+            value: _calendarFormat,
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.onSurface),
+            underline: Container(),
+            onChanged: (CalendarFormat? newFormat) {
+              if (newFormat != null) {
+                setState(() {
+                  _calendarFormat = newFormat;
+                });
+              }
+            },
+            items: [
+              DropdownMenuItem(
+                value: CalendarFormat.month,
+                child: Text(
+                  'Month View',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                ),
+              ),
+              DropdownMenuItem(
+                value: CalendarFormat.week,
+                child: Text(
+                  'Week View',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       drawer: Drawer(
         child: ListView(
@@ -138,6 +172,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _focusedDay = focusedDay;
                 });
               },
+              calendarFormat: _calendarFormat, // Use the selected calendar format
+              onFormatChanged: (format) {
+                setState(() {
+                  _calendarFormat = format;
+                });
+              },
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
@@ -177,23 +217,55 @@ class _CalendarScreenState extends State<CalendarScreen> {
             const SizedBox(height: 16),
             if (_tasksForSelectedDay.isNotEmpty)
               Expanded(
-                child: ListView.builder(
+                child: ListView.separated(
                   itemCount: _tasksForSelectedDay.length,
                   itemBuilder: (context, index) {
                     final task = _tasksForSelectedDay[index];
-                    return ListTile(
-                      title: Text(
-                        task['text'] ?? 'Unnamed Task',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DetailScreen(
+                              todo: Todo(
+                                id: task['id'] ?? '',
+                                text: task['text'] ?? 'Unnamed Task',
+                                uid: FirebaseAuth.instance.currentUser?.uid ?? '',
+                                description: task['description'] ?? '',
+                                dueAt: task['dueAt'] != null
+                                    ? (task['dueAt'] as Timestamp).toDate()
+                                    : null,
+                                priority: task['priority'] ?? 'medium',
+                                imageUrl: task['imageUrl'],
+                                createdAt: task['createdAt'] != null
+                                    ? (task['createdAt'] as Timestamp).toDate()
+                                    : DateTime.now(),
+                                completedAt: task['completedAt'] != null
+                                    ? (task['completedAt'] as Timestamp).toDate()
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      child: ListTile(
+                        title: Text(
+                          task['text'] ?? 'Unnamed Task',
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                        ),
+                        subtitle: task['dueAt'] != null
+                            ? Text(
+                                'Due: ${DateFormat.yMMMd().add_jm().format((task['dueAt'] as Timestamp).toDate())}',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues()),
+                              )
+                            : null,
                       ),
-                      subtitle: task['dueAt'] != null
-                          ? Text(
-                              'Due: ${DateFormat.yMMMd().add_jm().format((task['dueAt'] as Timestamp).toDate())}',
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues()),
-                            )
-                          : null,
                     );
                   },
+                  separatorBuilder: (context, index) => Divider(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(),
+                    thickness: 1,
+                  ),
                 ),
               )
             else
@@ -214,4 +286,3 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 }
-
